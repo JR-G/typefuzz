@@ -27,4 +27,11 @@ describe('date generator', () => {
     expect(result.ok).toBe(false);
     expect(result.failure?.counterexample.getTime()).toBeGreaterThanOrEqual(min.getTime());
   });
+
+  it('rejects invalid date bounds', () => {
+    const min = new Date('2020-01-10T00:00:00.000Z');
+    const max = new Date('2020-01-01T00:00:00.000Z');
+    expect(() => gen.date(min, max)).toThrowError(RangeError);
+    expect(() => gen.date(new Date('invalid'), new Date())).toThrowError(RangeError);
+  });
 });

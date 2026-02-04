@@ -143,4 +143,15 @@ describe('generators', () => {
     const value = generator.generate(randomSource);
     expect(value).toMatch(/^[a-z0-9]+@[a-z]+\.com$/);
   });
+
+  it('rejects invalid weightedOneOf weights', () => {
+    expect(() => gen.weightedOneOf([])).toThrowError(RangeError);
+    expect(() => gen.weightedOneOf([{ weight: 0, arbitrary: gen.constant('a') }])).toThrowError(RangeError);
+    expect(() => gen.weightedOneOf([{ weight: -1, arbitrary: gen.constant('a') }])).toThrowError(RangeError);
+  });
+
+  it('rejects invalid filter attempts', () => {
+    expect(() => gen.filter(gen.int(1, 10), () => true, 0)).toThrowError(RangeError);
+    expect(() => gen.filter(gen.int(1, 10), () => true, -1)).toThrowError(RangeError);
+  });
 });

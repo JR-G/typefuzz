@@ -71,6 +71,11 @@ describe('property runner', () => {
     expect(typedError.message).toContain('replay:');
     expect(typedError.message).toContain('seed: 55');
   });
+
+  it('rejects invalid maxShrinks', () => {
+    expect(() => runProperty(gen.int(1, 10), () => true, { maxShrinks: 0 })).toThrowError(RangeError);
+    expect(() => runProperty(gen.int(1, 10), () => true, { maxShrinks: -1 })).toThrowError(RangeError);
+  });
 });
 
 function catchError(action: () => void): unknown {
