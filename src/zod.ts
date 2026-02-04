@@ -30,6 +30,15 @@ function buildArbitrary(schema: z.ZodTypeAny): Arbitrary<unknown> {
   if (schema instanceof z.ZodObject) {
     return objectArbitrary(schema);
   }
+  if (schema instanceof z.ZodRecord) {
+    return recordArbitrary(schema);
+  }
+  if (schema instanceof z.ZodTuple) {
+    return tupleArbitrary(schema);
+  }
+  if (schema instanceof z.ZodDiscriminatedUnion) {
+    return discriminatedUnionArbitrary(schema);
+  }
   if (schema instanceof z.ZodOptional) {
     return gen.optional(buildArbitrary(schema.unwrap()));
   }
@@ -110,6 +119,21 @@ function enumArbitrary(schema: z.ZodEnum<[string, ...string[]]>): Arbitrary<stri
 
 function unionArbitrary(schema: z.ZodUnion<[z.ZodTypeAny, ...z.ZodTypeAny[]]>): Arbitrary<unknown> {
   const options = schema._def.options.map((option: z.ZodTypeAny) => buildArbitrary(option));
+  return gen.oneOf(...options);
+}
+
+function recordArbitrary(schema: z.ZodRecord<z.ZodTypeAny>): Arbitrary<Record<string, unknown>> {
+  const valueArbitrary = buildArbitrary(schema.valueSchema);
+  return gen.record(valueArbitrary);
+}
+
+function tupleArbitrary(schema: z.ZodTuple<[z.ZodTypeAny, ...z.ZodTypeAny[]]>): Arbitrary<unknown[]> {
+  const items = schema.items.map((item) => buildArbitrary(item));
+  return gen.tuple(...items);
+}
+
+function discriminatedUnionArbitrary(schema: z.ZodDiscriminatedUnion<string, z.ZodObject<Record<string, z.ZodTypeAny>>[]>): Arbitrary<unknown> {
+  const options = Array.from(schema.options.values()).map((option) => buildArbitrary(option));
   return gen.oneOf(...options);
 }
 
