@@ -223,6 +223,12 @@ export const gen = {
     );
   },
   /**
+   * Alias for weightedOneOf to mirror common property-testing APIs.
+   */
+  frequency<T>(options: Array<{ weight: number; arbitrary: Arbitrary<T> | Gen<T> }>): Arbitrary<T> {
+    return gen.weightedOneOf(options);
+  },
+  /**
    * Generate a tuple with a fixed length of heterogeneous arbitraries.
    */
   tuple<T extends Array<Arbitrary<unknown> | Gen<unknown>>>(...items: T): Arbitrary<{

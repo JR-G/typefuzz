@@ -119,4 +119,14 @@ describe('generators', () => {
     const value = generator.generate(randomSource);
     expect(['a', 'b']).toContain(value);
   });
+
+  it('supports frequency alias', () => {
+    const randomSource = createSeededRandomSource(7);
+    const generator = gen.frequency([
+      { weight: 1, arbitrary: gen.constant('a') },
+      { weight: 3, arbitrary: gen.constant('b') }
+    ]);
+    const value = generator.generate(randomSource);
+    expect(['a', 'b']).toContain(value);
+  });
 });
