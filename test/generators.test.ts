@@ -78,6 +78,20 @@ describe('generators', () => {
     expect(value).toBe(5);
   });
 
+  it('supports constant', () => {
+    const rng = createSeededRng(7);
+    const generator = gen.constant('fixed');
+    const value = generator.generate(rng);
+    expect(value).toBe('fixed');
+  });
+
+  it('supports constantFrom', () => {
+    const rng = createSeededRng(7);
+    const generator = gen.constantFrom('a', 'b', 'c');
+    const value = generator.generate(rng);
+    expect(['a', 'b', 'c']).toContain(value);
+  });
+
   it('supports map with unmap', () => {
     const rng = createSeededRng(7);
     const generator = gen.map(

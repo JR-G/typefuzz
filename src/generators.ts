@@ -36,6 +36,27 @@ export const gen = {
     );
   },
   /**
+   * Constant generator that always yields the same value.
+   */
+  constant<T>(value: T): Arbitrary<T> {
+    return createArbitrary(() => value, () => []);
+  },
+  /**
+   * Choose a value from a fixed list of constants.
+   */
+  constantFrom<T>(...values: T[]): Arbitrary<T> {
+    if (values.length === 0) {
+      throw new RangeError('constantFrom requires at least one value');
+    }
+    return createArbitrary(
+      (rng) => {
+        const index = Math.floor(rng() * values.length);
+        return values[index];
+      },
+      (value) => (Object.is(value, values[0]) ? [] : [values[0]])
+    );
+  },
+  /**
    * Lowercase alphanumeric string of a fixed length.
    */
   string(length = 8): Arbitrary<string> {
