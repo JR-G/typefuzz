@@ -15,6 +15,20 @@ bun install
 bun run test
 ```
 
+## Zod adapter (optional)
+
+```ts
+import { z } from 'zod';
+import { zodArbitrary } from 'typefuzz/zod';
+
+const schema = z.object({
+  name: z.string().min(2).max(5),
+  count: z.number().int().min(1).max(3)
+});
+
+const arb = zodArbitrary(schema);
+```
+
 ## Goals
 
 - Simple property-based test helper for Vitest and Jest
