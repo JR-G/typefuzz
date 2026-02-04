@@ -178,6 +178,43 @@ export const gen = {
     );
   },
   /**
+   * Generate a UUID v4 string.
+   */
+  uuid(): Arbitrary<string> {
+    const hex = '0123456789abcdef';
+    return createArbitrary(
+      (randomSource) => {
+        const parts = [8, 4, 4, 4, 12].map((segmentLength, index) => {
+          if (index === 2) {
+            return `4${Array.from({ length: segmentLength - 1 }, () => hex[Math.floor(randomSource() * hex.length)]).join('')}`;
+          }
+          if (index === 3) {
+            const first = (8 + Math.floor(randomSource() * 4)).toString(16);
+            return `${first}${Array.from({ length: segmentLength - 1 }, () => hex[Math.floor(randomSource() * hex.length)]).join('')}`;
+          }
+          return Array.from({ length: segmentLength }, () => hex[Math.floor(randomSource() * hex.length)]).join('');
+        });
+        return parts.join('-');
+      },
+      (value) => shrinkString(value)
+    );
+  },
+  /**
+   * Generate a basic email address.
+   */
+  email(): Arbitrary<string> {
+    const localChars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    const domainChars = 'abcdefghijklmnopqrstuvwxyz';
+    return createArbitrary(
+      (randomSource) => {
+        const local = Array.from({ length: 8 }, () => localChars[Math.floor(randomSource() * localChars.length)]).join('');
+        const domain = Array.from({ length: 6 }, () => domainChars[Math.floor(randomSource() * domainChars.length)]).join('');
+        return `${local}@${domain}.com`;
+      },
+      (value) => shrinkString(value)
+    );
+  },
+  /**
    * Fixed-length array generator.
    */
   array<T>(item: Arbitrary<T> | Gen<T>, length = 5): Arbitrary<T[]> {

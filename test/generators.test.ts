@@ -129,4 +129,18 @@ describe('generators', () => {
     const value = generator.generate(randomSource);
     expect(['a', 'b']).toContain(value);
   });
+
+  it('supports uuid', () => {
+    const randomSource = createSeededRandomSource(7);
+    const generator = gen.uuid();
+    const value = generator.generate(randomSource);
+    expect(value).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+  });
+
+  it('supports email', () => {
+    const randomSource = createSeededRandomSource(7);
+    const generator = gen.email();
+    const value = generator.generate(randomSource);
+    expect(value).toMatch(/^[a-z0-9]+@[a-z]+\.com$/);
+  });
 });
