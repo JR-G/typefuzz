@@ -40,6 +40,25 @@ const schema = z.object({
 const arb = zodArbitrary(schema);
 ```
 
+### Supported Zod types
+
+- `z.string`
+- `z.number` (incl. `int`)
+- `z.boolean`
+- `z.array`
+- `z.object`
+- `z.record`
+- `z.tuple`
+- `z.union`
+- `z.discriminatedUnion`
+- `z.literal`
+- `z.enum`
+- `z.nativeEnum`
+- `z.optional`
+- `z.nullable`
+- `z.map`
+- `z.set`
+
 ## Goals
 
 - Simple property-based test helper for Vitest and Jest
