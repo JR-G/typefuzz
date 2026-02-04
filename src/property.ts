@@ -30,6 +30,7 @@ export interface SerializedFailure<T> {
   shrinks: number;
   counterexample: T;
   message: string;
+  replay: string;
 }
 
 /**
@@ -76,7 +77,8 @@ export function serializeFailure<T>(failure: PropertyFailure<T>): SerializedFail
     iterations: failure.iterations,
     shrinks: failure.shrinks,
     counterexample: failure.counterexample,
-    message: formatFailure(failure)
+    message: formatFailure(failure),
+    replay: formatReplaySnippet(failure.seed, failure.runs)
   };
 }
 

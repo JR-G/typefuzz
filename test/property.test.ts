@@ -48,6 +48,7 @@ describe('property runner', () => {
     expect(serialized.seed).toBe(42);
     expect(serialized.counterexample).toBe(1);
     expect(serialized.message).toContain('seed: 42');
+    expect(serialized.replay).toContain('seed: 42');
   });
 
   it('attaches failure metadata to thrown errors', () => {
