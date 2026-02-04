@@ -75,7 +75,7 @@ export const gen = {
         }
         return out as { [K in keyof T]: ReturnType<T[K]> };
       },
-      () => []
+      (value) => shrinkObject(value, shape)
     );
   }
 };
@@ -163,6 +163,21 @@ function* shrinkArray<T>(value: T[], shrinkItem: Shrink<T>): Iterable<T[]> {
     for (const shrunk of shrinkItem(value[index])) {
       const next = value.slice();
       next[index] = shrunk;
+      yield next;
+    }
+  }
+}
+
+function* shrinkObject<T extends GenShape>(
+  value: { [K in keyof T]: ReturnType<T[K]> },
+  shape: T
+): Iterable<{ [K in keyof T]: ReturnType<T[K]> }> {
+  for (const key of Object.keys(shape)) {
+    const typedKey = key as keyof T;
+    const arbitrary = toArbitrary(shape[typedKey]);
+    for (const shrunk of arbitrary.shrink(value[typedKey])) {
+      const next = { ...value };
+      next[typedKey] = shrunk as ReturnType<T[keyof T]>;
       yield next;
     }
   }
