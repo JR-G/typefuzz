@@ -57,6 +57,32 @@ export const gen = {
     );
   },
   /**
+   * Generate a record with string keys and arbitrary values.
+   */
+  record<T>(valueArbitrary: Arbitrary<T> | Gen<T>, options: { minKeys?: number; maxKeys?: number } = {}): Arbitrary<Record<string, T>> {
+    const minKeys = options.minKeys ?? 0;
+    const maxKeys = options.maxKeys ?? Math.max(minKeys, 3);
+    if (!Number.isInteger(minKeys) || minKeys < 0) {
+      throw new RangeError('minKeys must be a non-negative integer');
+    }
+    if (!Number.isInteger(maxKeys) || maxKeys < minKeys) {
+      throw new RangeError('maxKeys must be an integer >= minKeys');
+    }
+    const arbitrary = toArbitrary(valueArbitrary);
+    return createArbitrary(
+      (rng) => {
+        const keyCount = randomInt(rng, minKeys, maxKeys);
+        const record: Record<string, T> = {};
+        for (let index = 0; index < keyCount; index += 1) {
+          const key = randomKey(rng, index);
+          record[key] = arbitrary.generate(rng);
+        }
+        return record;
+      },
+      (value) => shrinkRecord(value, arbitrary)
+    );
+  },
+  /**
    * Lowercase alphanumeric string of a fixed length.
    */
   string(length = 8): Arbitrary<string> {
@@ -299,6 +325,41 @@ function* shrinkTuple<T extends unknown[]>(value: T, arbitraries: Array<Arbitrar
       yield next;
     }
   }
+}
+
+function* shrinkRecord<T>(value: Record<string, T>, arbitrary: Arbitrary<T>): Iterable<Record<string, T>> {
+  const entries = Object.entries(value);
+  if (entries.length === 0) {
+    return;
+  }
+  let length = Math.floor(entries.length / 2);
+  while (length >= 0) {
+    const next: Record<string, T> = {};
+    for (let index = 0; index < length; index += 1) {
+      const [key, entryValue] = entries[index];
+      next[key] = entryValue;
+    }
+    yield next;
+    if (length === 0) {
+      break;
+    }
+    length = Math.floor(length / 2);
+  }
+  for (const [key, entryValue] of entries) {
+    for (const shrunk of arbitrary.shrink(entryValue)) {
+      const next = { ...value };
+      next[key] = shrunk;
+      yield next;
+    }
+  }
+}
+
+function randomInt(rng: () => number, min: number, max: number): number {
+  return Math.floor(rng() * (max - min + 1)) + min;
+}
+
+function randomKey(rng: () => number, index: number): string {
+  return `key_${index}_${Math.floor(rng() * 1_000_000)}`;
 }
 
 function* shrinkMapped<T, U>(
