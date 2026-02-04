@@ -106,7 +106,7 @@ const arb = zodArbitrary(schema);
 
 ## Roadmap (MVP)
 
-- `fuzz.it` wrapper for Vitest
+- `fuzzIt` wrapper for Vitest
 - Core generators for primitives/arrays/objects
 - Seeded RNG and reproducible failures
 - Minimal shrinkers for common types
