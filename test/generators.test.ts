@@ -54,4 +54,27 @@ describe('generators', () => {
     expect(() => gen.string(-1)).toThrowError(RangeError);
     expect(() => gen.array(gen.bool(), -1)).toThrowError(RangeError);
   });
+
+  it('supports oneOf', () => {
+    const rng = createSeededRng(7);
+    const generator = gen.oneOf(gen.int(1, 1), gen.int(2, 2));
+    const value = generator.generate(rng);
+    expect([1, 2]).toContain(value);
+  });
+
+  it('supports tuple', () => {
+    const rng = createSeededRng(7);
+    const generator = gen.tuple(gen.int(1, 1), gen.string(3), gen.bool());
+    const value = generator.generate(rng);
+    expect(value[0]).toBe(1);
+    expect(value[1]).toHaveLength(3);
+    expect(typeof value[2]).toBe('boolean');
+  });
+
+  it('supports optional', () => {
+    const rng = createSeededRng(7);
+    const generator = gen.optional(gen.int(5, 5), 0);
+    const value = generator.generate(rng);
+    expect(value).toBe(5);
+  });
 });

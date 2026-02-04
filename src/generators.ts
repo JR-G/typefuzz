@@ -77,6 +77,57 @@ export const gen = {
       },
       (value) => shrinkObject(value, shape)
     );
+  },
+  /**
+   * Pick one of the provided arbitraries at random.
+   */
+  oneOf<T>(...options: Array<Arbitrary<T> | Gen<T>>): Arbitrary<T> {
+    if (options.length === 0) {
+      throw new RangeError('oneOf requires at least one option');
+    }
+    const arbitraries = options.map((option) => toArbitrary(option));
+    return createArbitrary(
+      (rng) => {
+        const index = Math.floor(rng() * arbitraries.length);
+        return arbitraries[index].generate(rng);
+      },
+      (value) => shrinkOneOf(value, arbitraries)
+    );
+  },
+  /**
+   * Generate a tuple with a fixed length of heterogeneous arbitraries.
+   */
+  tuple<T extends Array<Arbitrary<unknown> | Gen<unknown>>>(...items: T): Arbitrary<{
+    [K in keyof T]: T[K] extends Arbitrary<infer U>
+      ? U
+      : T[K] extends Gen<infer V>
+        ? V
+        : never
+  }> {
+    const arbitraries = items.map((item) => toArbitrary(item));
+    return createArbitrary(
+      (rng) => arbitraries.map((arb) => arb.generate(rng)) as {
+        [K in keyof T]: T[K] extends Arbitrary<infer U>
+          ? U
+          : T[K] extends Gen<infer V>
+            ? V
+            : never
+      },
+      (value) => shrinkTuple(value, arbitraries)
+    );
+  },
+  /**
+   * Generate an optional value. Undefined is used for absence.
+   */
+  optional<T>(item: Arbitrary<T> | Gen<T>, undefinedProbability = 0.5): Arbitrary<T | undefined> {
+    if (!Number.isFinite(undefinedProbability) || undefinedProbability < 0 || undefinedProbability > 1) {
+      throw new RangeError('undefinedProbability must be between 0 and 1');
+    }
+    const arbitrary = toArbitrary(item);
+    return createArbitrary(
+      (rng) => (rng() < undefinedProbability ? undefined : arbitrary.generate(rng)),
+      (value) => (value === undefined ? [] : [undefined, ...arbitrary.shrink(value)])
+    );
   }
 };
 
@@ -181,6 +232,26 @@ function* shrinkObject<T extends GenShape>(
     for (const shrunk of arbitrary.shrink(value[typedKey])) {
       const next = { ...value };
       next[typedKey] = shrunk as ReturnType<T[keyof T]>;
+      yield next;
+    }
+  }
+}
+
+function* shrinkOneOf<T>(value: T, arbitraries: Array<Arbitrary<T>>): Iterable<T> {
+  for (const arbitrary of arbitraries) {
+    for (const shrunk of arbitrary.shrink(value)) {
+      yield shrunk;
+    }
+  }
+}
+
+function* shrinkTuple<T extends unknown[]>(value: T, arbitraries: Array<Arbitrary<unknown>>): Iterable<T> {
+  for (let index = 0; index < value.length; index += 1) {
+    const arbitrary = arbitraries[index];
+    const current = value[index];
+    for (const shrunk of arbitrary.shrink(current)) {
+      const next = value.slice() as T;
+      next[index] = shrunk as T[number];
       yield next;
     }
   }
