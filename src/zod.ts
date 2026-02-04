@@ -57,6 +57,9 @@ function buildArbitrary(schema: z.ZodTypeAny): Arbitrary<unknown> {
   if (schema instanceof z.ZodEnum) {
     return enumArbitrary(schema);
   }
+  if (schema instanceof z.ZodNativeEnum) {
+    return nativeEnumArbitrary(schema);
+  }
   if (schema instanceof z.ZodUnion) {
     return unionArbitrary(schema);
   }
@@ -120,6 +123,17 @@ function enumArbitrary(schema: z.ZodEnum<[string, ...string[]]>): Arbitrary<stri
   return createArbitrary(
     (randomSource) => options[Math.floor(randomSource() * options.length)],
     (value) => (value === options[0] ? [] : [options[0]])
+  );
+}
+
+function nativeEnumArbitrary(schema: z.ZodNativeEnum<Record<string, string | number>>): Arbitrary<string | number> {
+  const values = Object.values(schema.enum).filter((value) => typeof value === 'string' || typeof value === 'number');
+  if (values.length === 0) {
+    throw new RangeError('native enum must contain string or number values');
+  }
+  return createArbitrary(
+    (randomSource) => values[Math.floor(randomSource() * values.length)],
+    (value) => (Object.is(value, values[0]) ? [] : [values[0]])
   );
 }
 

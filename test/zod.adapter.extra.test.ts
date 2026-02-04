@@ -46,4 +46,17 @@ describe('zod adapter extra types', () => {
     const value = arbitrary.generate(randomSource);
     expect(() => schema.parse(value)).not.toThrow();
   });
+
+  it('supports native enums', () => {
+    const Status = {
+      Active: 'active',
+      Pending: 'pending',
+      Disabled: 'disabled'
+    } as const;
+    const schema = z.nativeEnum(Status);
+    const randomSource = createSeededRandomSource(17);
+    const arbitrary = zodArbitrary(schema);
+    const value = arbitrary.generate(randomSource);
+    expect(() => schema.parse(value)).not.toThrow();
+  });
 });
