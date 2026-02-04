@@ -155,3 +155,14 @@ if (!result.ok && result.failure) {
   console.log(fuzz.formatSerializedFailure(serialized));
 }
 ```
+
+## FAQ
+
+Why do some generators throw?  
+Generators that require bounds (like `gen.int` or `gen.date`) validate inputs eagerly to surface errors early.
+
+How deterministic are failures?  
+Failures include a seed and run count. Use `fuzz.assertReplay` to reproduce the same counterexample path.
+
+Do I need Zod?  
+No. The Zod adapter is optional; core generators and fuzz helpers do not depend on it.
