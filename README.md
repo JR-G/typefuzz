@@ -17,6 +17,10 @@ fuzz.assert(gen.array(gen.int(0, 10), 5), (values) => {
 
 Early scaffolding. The API is not stable yet.
 
+## API stability
+
+Expect breaking changes while the API evolves. The goal is to stabilize core generators and the `fuzz` API before cutting a public release.
+
 ## Tooling
 
 This repo uses Bun for all commands.
