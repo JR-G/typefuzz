@@ -108,13 +108,15 @@ export function runReplay<T>(arb: Arbitrary<T> | Gen<T>, predicate: (value: T) =
  */
 export function fuzzAssert<T>(arb: Arbitrary<T> | Gen<T>, predicate: (value: T) => boolean | void, config: PropertyConfig = {}): void {
   const result = runProperty(arb, predicate, config);
-  if (!result.ok && result.failure) {
-    const error = new Error(formatFailure(result.failure));
-    if (result.failure.error) {
-      error.cause = result.failure.error;
-    }
-    throw error;
+  if (result.ok || !result.failure) {
+    return;
   }
+  const error = new Error(formatFailure(result.failure));
+  const failureCause = result.failure.error;
+  if (failureCause !== undefined) {
+    error.cause = failureCause;
+  }
+  throw error;
 }
 
 /**
@@ -158,15 +160,17 @@ function shrinkCounterexample<T>(arb: Arbitrary<T>, predicate: (value: T) => boo
       }
       shrinks += 1;
       const failure = tryFailure(predicate, candidate);
-      if (failure.failed) {
-        const score = scoreValue(candidate);
-        if (score < bestScore) {
-          bestScore = score;
-          bestCandidate = candidate;
-        }
-        if (failure.error) {
-          lastError = failure.error;
-        }
+      if (!failure.failed) {
+        continue;
+      }
+      const score = scoreValue(candidate);
+      if (score < bestScore) {
+        bestScore = score;
+        bestCandidate = candidate;
+      }
+      const failureCause = failure.error;
+      if (failureCause !== undefined) {
+        lastError = failureCause;
       }
     }
     if (bestCandidate === undefined) {
