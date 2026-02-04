@@ -36,6 +36,12 @@ function buildArbitrary(schema: z.ZodTypeAny): Arbitrary<unknown> {
   if (schema instanceof z.ZodTuple) {
     return tupleArbitrary(schema);
   }
+  if (schema instanceof z.ZodMap) {
+    return mapArbitrary(schema);
+  }
+  if (schema instanceof z.ZodSet) {
+    return setArbitrary(schema);
+  }
   if (schema instanceof z.ZodDiscriminatedUnion) {
     return discriminatedUnionArbitrary(schema);
   }
@@ -135,6 +141,23 @@ function tupleArbitrary(schema: z.ZodTuple<[z.ZodTypeAny, ...z.ZodTypeAny[]]>): 
 function discriminatedUnionArbitrary(schema: z.ZodDiscriminatedUnion<string, z.ZodObject<Record<string, z.ZodTypeAny>>[]>): Arbitrary<unknown> {
   const options = Array.from(schema.options.values()).map((option) => buildArbitrary(option));
   return gen.oneOf(...options);
+}
+
+function mapArbitrary(schema: z.ZodMap<z.ZodTypeAny, z.ZodTypeAny>): Arbitrary<Map<unknown, unknown>> {
+  const keyArbitrary = buildArbitrary(schema.keySchema);
+  const valueArbitrary = buildArbitrary(schema.valueSchema);
+  return gen.map(
+    gen.dictionary(
+      gen.map(keyArbitrary, (value) => String(value)),
+      valueArbitrary
+    ),
+    (record) => new Map(Object.entries(record))
+  );
+}
+
+function setArbitrary(schema: z.ZodSet<z.ZodTypeAny>): Arbitrary<Set<unknown>> {
+  const valueArbitrary = buildArbitrary(schema._def.valueType);
+  return gen.set(valueArbitrary);
 }
 
 function literalArbitrary<T>(value: T): Arbitrary<T> {

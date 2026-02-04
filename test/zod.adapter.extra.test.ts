@@ -30,4 +30,20 @@ describe('zod adapter extra types', () => {
     const value = arbitrary.generate(randomSource);
     expect(() => schema.parse(value)).not.toThrow();
   });
+
+  it('supports map schemas', () => {
+    const schema = z.map(z.string().min(1).max(2), z.number().int().min(1).max(2));
+    const randomSource = createSeededRandomSource(17);
+    const arbitrary = zodArbitrary(schema);
+    const value = arbitrary.generate(randomSource);
+    expect(() => schema.parse(value)).not.toThrow();
+  });
+
+  it('supports set schemas', () => {
+    const schema = z.set(z.number().int().min(1).max(3));
+    const randomSource = createSeededRandomSource(17);
+    const arbitrary = zodArbitrary(schema);
+    const value = arbitrary.generate(randomSource);
+    expect(() => schema.parse(value)).not.toThrow();
+  });
 });
