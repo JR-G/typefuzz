@@ -116,6 +116,18 @@ fuzzIt('sum is commutative', gen.tuple(gen.int(0, 10), gen.int(0, 10)), ([left, 
 }, { runs: 200, seed: 123 });
 ```
 
+### Jest
+
+```ts
+import { fuzzIt } from 'typefuzz/jest';
+import { gen } from 'typefuzz';
+
+fuzzIt('reverse is involutive', gen.array(gen.int(0, 10), 5), (values) => {
+  const doubleReversed = [...values].reverse().reverse();
+  return JSON.stringify(doubleReversed) === JSON.stringify(values);
+}, { runs: 200, seed: 123 });
+```
+
 ## Shrinking behavior
 
 When a property fails, Typefuzz attempts to shrink the counterexample by reducing sizes (arrays, records, sets) and moving numbers/dates toward smaller values. The final counterexample is the smallest failing case found within the shrink budget.
