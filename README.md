@@ -13,6 +13,12 @@ fuzz.assert(gen.array(gen.int(0, 10), 5), (values) => {
 }, { runs: 100, seed: 123 });
 ```
 
+## Installation
+
+```sh
+bun add typefuzz
+```
+
 ## Status
 
 Early scaffolding. The API is not stable yet.
