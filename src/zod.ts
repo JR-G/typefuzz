@@ -9,6 +9,12 @@ const DEFAULT_FLOAT_RANGE = { min: 0, max: 1 };
 
 /**
  * Build an Arbitrary from a Zod schema.
+ *
+ * @example
+ * ```ts
+ * const schema = z.object({ name: z.string().min(2).max(5) });
+ * const arb = zodArbitrary(schema);
+ * ```
  */
 export function zodArbitrary<T extends z.ZodTypeAny>(schema: T): Arbitrary<z.infer<T>> {
   return buildArbitrary(schema) as Arbitrary<z.infer<T>>;

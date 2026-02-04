@@ -8,6 +8,11 @@ type GenShape = Record<string, Arbitrary<unknown> | Gen<unknown>>;
 export const gen = {
   /**
    * Integer generator inclusive of min and max.
+   *
+   * @example
+   * ```ts
+   * const integers = gen.int(-5, 5);
+   * ```
    */
   int(min = 0, max = 100): Arbitrary<number> {
     assertRange(min, max, 'int');
@@ -18,6 +23,11 @@ export const gen = {
   },
   /**
    * Float generator within [min, max).
+   *
+   * @example
+   * ```ts
+   * const floats = gen.float(0, 1);
+   * ```
    */
   float(min = 0, max = 1): Arbitrary<number> {
     assertRange(min, max, 'float');
@@ -28,6 +38,11 @@ export const gen = {
   },
   /**
    * Boolean generator.
+   *
+   * @example
+   * ```ts
+   * const booleans = gen.bool();
+   * ```
    */
   bool(): Arbitrary<boolean> {
     return createArbitrary(
@@ -37,12 +52,22 @@ export const gen = {
   },
   /**
    * Constant generator that always yields the same value.
+   *
+   * @example
+   * ```ts
+   * const alwaysFive = gen.constant(5);
+   * ```
    */
   constant<T>(value: T): Arbitrary<T> {
     return createArbitrary(() => value, () => []);
   },
   /**
    * Choose a value from a fixed list of constants.
+   *
+   * @example
+   * ```ts
+   * const status = gen.constantFrom('open', 'closed');
+   * ```
    */
   constantFrom<T>(...values: T[]): Arbitrary<T> {
     if (values.length === 0) {
@@ -55,6 +80,11 @@ export const gen = {
   },
   /**
    * Generate a record with string keys and arbitrary values.
+   *
+   * @example
+   * ```ts
+   * const recordGen = gen.record(gen.int(1, 10), { minKeys: 1, maxKeys: 3 });
+   * ```
    */
   record<T>(valueArbitrary: Arbitrary<T> | Gen<T>, options: { minKeys?: number; maxKeys?: number } = {}): Arbitrary<Record<string, T>> {
     const minKeys = options.minKeys ?? 0;
@@ -80,6 +110,11 @@ export const gen = {
   },
   /**
    * Generate a dictionary from a key arbitrary and a value arbitrary.
+   *
+   * @example
+   * ```ts
+   * const dictGen = gen.dictionary(gen.string(3), gen.bool(), { minKeys: 2, maxKeys: 5 });
+   * ```
    */
   dictionary<V>(
     keyArbitrary: Arbitrary<string> | Gen<string>,
@@ -112,6 +147,11 @@ export const gen = {
   },
   /**
    * Generate a set (unique values) using an arbitrary.
+   *
+   * @example
+   * ```ts
+   * const setGen = gen.set(gen.int(1, 10), { minSize: 2, maxSize: 4 });
+   * ```
    */
   set<T>(
     valueArbitrary: Arbitrary<T> | Gen<T>,
@@ -140,6 +180,11 @@ export const gen = {
   },
   /**
    * Generate an array with unique values using an arbitrary.
+   *
+   * @example
+   * ```ts
+   * const uniqueGen = gen.uniqueArray(gen.int(1, 10), { minLength: 2, maxLength: 4 });
+   * ```
    */
   uniqueArray<T>(
     valueArbitrary: Arbitrary<T> | Gen<T>,
@@ -168,6 +213,11 @@ export const gen = {
   },
   /**
    * Lowercase alphanumeric string of a fixed length.
+   *
+   * @example
+   * ```ts
+   * const ids = gen.string(8);
+   * ```
    */
   string(length = 8): Arbitrary<string> {
     assertLength(length, 'string length');
@@ -179,6 +229,11 @@ export const gen = {
   },
   /**
    * Generate a UUID v4 string.
+   *
+   * @example
+   * ```ts
+   * const ids = gen.uuid();
+   * ```
    */
   uuid(): Arbitrary<string> {
     const hex = '0123456789abcdef';
@@ -201,6 +256,11 @@ export const gen = {
   },
   /**
    * Generate a basic email address.
+   *
+   * @example
+   * ```ts
+   * const emails = gen.email();
+   * ```
    */
   email(): Arbitrary<string> {
     const localChars = 'abcdefghijklmnopqrstuvwxyz0123456789';
@@ -216,6 +276,11 @@ export const gen = {
   },
   /**
    * Generate a Date within a range (inclusive).
+   *
+   * @example
+   * ```ts
+   * const dates = gen.date(new Date('2020-01-01'), new Date('2020-12-31'));
+   * ```
    */
   date(min = new Date(0), max = new Date()): Arbitrary<Date> {
     const minTime = min.getTime();
@@ -237,6 +302,11 @@ export const gen = {
   },
   /**
    * Fixed-length array generator.
+   *
+   * @example
+   * ```ts
+   * const items = gen.array(gen.int(1, 3), 5);
+   * ```
    */
   array<T>(item: Arbitrary<T> | Gen<T>, length = 5): Arbitrary<T[]> {
     assertLength(length, 'array length');
@@ -248,6 +318,11 @@ export const gen = {
   },
   /**
    * Object generator from a generator shape map.
+   *
+   * @example
+   * ```ts
+   * const user = gen.object({ id: gen.int(1, 10), name: gen.string(5) });
+   * ```
    */
   object<T extends GenShape>(shape: T): Arbitrary<{ [K in keyof T]: ReturnType<T[K]> }> {
     return createArbitrary(
@@ -259,6 +334,11 @@ export const gen = {
   },
   /**
    * Pick one of the provided arbitraries at random.
+   *
+   * @example
+   * ```ts
+   * const value = gen.oneOf(gen.int(1, 1), gen.int(2, 2));
+   * ```
    */
   oneOf<T>(...options: Array<Arbitrary<T> | Gen<T>>): Arbitrary<T> {
     if (options.length === 0) {
@@ -275,6 +355,14 @@ export const gen = {
   },
   /**
    * Pick one of the provided arbitraries using weights.
+   *
+   * @example
+   * ```ts
+   * const value = gen.weightedOneOf([
+   *   { weight: 1, arbitrary: gen.constant('a') },
+   *   { weight: 3, arbitrary: gen.constant('b') }
+   * ]);
+   * ```
    */
   weightedOneOf<T>(options: Array<{ weight: number; arbitrary: Arbitrary<T> | Gen<T> }>): Arbitrary<T> {
     if (options.length === 0) {
@@ -310,12 +398,25 @@ export const gen = {
   },
   /**
    * Alias for weightedOneOf to mirror common property-testing APIs.
+   *
+   * @example
+   * ```ts
+   * const value = gen.frequency([
+   *   { weight: 1, arbitrary: gen.constant('a') },
+   *   { weight: 3, arbitrary: gen.constant('b') }
+   * ]);
+   * ```
    */
   frequency<T>(options: Array<{ weight: number; arbitrary: Arbitrary<T> | Gen<T> }>): Arbitrary<T> {
     return gen.weightedOneOf(options);
   },
   /**
    * Generate a tuple with a fixed length of heterogeneous arbitraries.
+   *
+   * @example
+   * ```ts
+   * const tupleGen = gen.tuple(gen.int(1, 1), gen.string(3), gen.bool());
+   * ```
    */
   tuple<T extends Array<Arbitrary<unknown> | Gen<unknown>>>(...items: T): Arbitrary<{
     [K in keyof T]: T[K] extends Arbitrary<infer U>
@@ -338,6 +439,11 @@ export const gen = {
   },
   /**
    * Generate an optional value. Undefined is used for absence.
+   *
+   * @example
+   * ```ts
+   * const optionalValue = gen.optional(gen.int(1, 2), 0.3);
+   * ```
    */
   optional<T>(item: Arbitrary<T> | Gen<T>, undefinedProbability = 0.5): Arbitrary<T | undefined> {
     if (!Number.isFinite(undefinedProbability) || undefinedProbability < 0 || undefinedProbability > 1) {
@@ -351,6 +457,11 @@ export const gen = {
   },
   /**
    * Transform an arbitrary by mapping its generated values.
+   *
+   * @example
+   * ```ts
+   * const mapped = gen.map(gen.int(1, 2), (value) => `id:${value}`);
+   * ```
    */
   map<T, U>(item: Arbitrary<T> | Gen<T>, mapper: (value: T) => U, unmap?: (value: U) => T | undefined): Arbitrary<U> {
     const arbitrary = toArbitrary(item);
@@ -361,6 +472,11 @@ export const gen = {
   },
   /**
    * Filter an arbitrary by a predicate, with retry protection.
+   *
+   * @example
+   * ```ts
+   * const even = gen.filter(gen.int(1, 10), (value) => value % 2 === 0);
+   * ```
    */
   filter<T>(item: Arbitrary<T> | Gen<T>, predicate: (value: T) => boolean, maxAttempts = 100): Arbitrary<T> {
     if (!Number.isFinite(maxAttempts) || !Number.isInteger(maxAttempts) || maxAttempts <= 0) {

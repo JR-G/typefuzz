@@ -91,6 +91,11 @@ export function formatSerializedFailure<T>(failure: SerializedFailure<T>): strin
 
 /**
  * Execute a property with shrinking and return a structured result.
+ *
+ * @example
+ * ```ts
+ * const result = runProperty(gen.int(1, 10), (value) => value > 0, { runs: 100 });
+ * ```
  */
 export function runProperty<T>(arbitraryInput: Arbitrary<T> | Gen<T>, predicate: (value: T) => boolean | void, config: PropertyConfig = {}): PropertyResult<T> {
   const { runs, seed, randomSource } = createRunState(config);
@@ -121,6 +126,11 @@ export function runProperty<T>(arbitraryInput: Arbitrary<T> | Gen<T>, predicate:
 
 /**
  * Replay a property with a specific seed.
+ *
+ * @example
+ * ```ts
+ * runReplay(gen.int(1, 10), (value) => value > 0, { seed: 123, runs: 100 });
+ * ```
  */
 export function runReplay<T>(arbitraryInput: Arbitrary<T> | Gen<T>, predicate: (value: T) => boolean | void, config: ReplayConfig): PropertyResult<T> {
   return runProperty(arbitraryInput, predicate, { ...config, seed: config.seed });
@@ -128,6 +138,11 @@ export function runReplay<T>(arbitraryInput: Arbitrary<T> | Gen<T>, predicate: (
 
 /**
  * Run a property and throw an Error on failure.
+ *
+ * @example
+ * ```ts
+ * fuzzAssert(gen.int(1, 10), (value) => value > 0);
+ * ```
  */
 export function fuzzAssert<T>(arbitraryInput: Arbitrary<T> | Gen<T>, predicate: (value: T) => boolean | void, config: PropertyConfig = {}): void {
   const result = runProperty(arbitraryInput, predicate, config);
@@ -139,6 +154,11 @@ export function fuzzAssert<T>(arbitraryInput: Arbitrary<T> | Gen<T>, predicate: 
 
 /**
  * Replay a property with a specific seed and throw on failure.
+ *
+ * @example
+ * ```ts
+ * fuzzReplay(gen.int(1, 10), (value) => value > 0, { seed: 123, runs: 100 });
+ * ```
  */
 export function fuzzReplay<T>(arbitraryInput: Arbitrary<T> | Gen<T>, predicate: (value: T) => boolean | void, config: ReplayConfig): void {
   fuzzAssert(arbitraryInput, predicate, config);
