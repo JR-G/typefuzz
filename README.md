@@ -143,3 +143,15 @@ const predicate = (values: number[]) => values.length === 0;
 // Replay a known failing seed
 fuzz.assertReplay(arbitrary, predicate, { seed: 123, runs: 100 });
 ```
+
+## Failure output
+
+```ts
+import { fuzz, gen } from 'typefuzz';
+
+const result = fuzz.property(gen.int(1, 10), () => false, { seed: 42, runs: 1 });
+if (!result.ok && result.failure) {
+  const serialized = fuzz.serializeFailure(result.failure);
+  console.log(fuzz.formatSerializedFailure(serialized));
+}
+```
