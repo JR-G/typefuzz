@@ -47,6 +47,31 @@ const arb = zodArbitrary(schema);
 - Shrinking of failing cases
 - Optional schema adapters (zod/typebox/io-ts)
 
+## Generators
+
+- `gen.int(min, max)` inclusive integer generator
+- `gen.float(min, max)` float generator in `[min, max)`
+- `gen.bool()` boolean generator
+- `gen.string(length)` lowercase alphanumeric string
+- `gen.uuid()` UUID v4 string
+- `gen.email()` basic email address
+- `gen.date(min, max)` date generator within bounds
+- `gen.array(item, length)` fixed-length arrays
+- `gen.uniqueArray(item, { minLength, maxLength })` unique arrays
+- `gen.object(shape)` object from generator map
+- `gen.record(value, { minKeys, maxKeys })` record with string keys
+- `gen.dictionary(key, value, { minKeys, maxKeys })` dictionary with custom keys
+- `gen.set(value, { minSize, maxSize })` set generator
+- `gen.oneOf(...options)` random choice
+- `gen.weightedOneOf(options)` weighted choice
+- `gen.frequency(options)` alias for `weightedOneOf`
+- `gen.tuple(...items)` heterogeneous tuple
+- `gen.optional(item, probability)` optional values
+- `gen.constant(value)` constant generator
+- `gen.constantFrom(...values)` constant choice
+- `gen.map(item, mapper, unmap?)` map values
+- `gen.filter(item, predicate, maxAttempts?)` filter values
+
 ## Roadmap (MVP)
 
 - `fuzz.it` wrapper for Vitest
