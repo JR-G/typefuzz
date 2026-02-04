@@ -2,6 +2,12 @@ import { createArbitrary, type Arbitrary, type Gen, type Shrink } from './core.j
 
 type GenShape = Record<string, Arbitrary<unknown> | Gen<unknown>>;
 
+type InferValue<T> = T extends Arbitrary<infer U>
+  ? U
+  : T extends Gen<infer V>
+    ? V
+    : never;
+
 /**
  * Built-in generators.
  */
@@ -324,11 +330,11 @@ export const gen = {
    * const user = gen.object({ id: gen.int(1, 10), name: gen.string(5) });
    * ```
    */
-  object<T extends GenShape>(shape: T): Arbitrary<{ [K in keyof T]: ReturnType<T[K]> }> {
+  object<T extends GenShape>(shape: T): Arbitrary<{ [K in keyof T]: InferValue<T[K]> }> {
     return createArbitrary(
       (randomSource) => Object.fromEntries(
         Object.keys(shape).map((key) => [key, toArbitrary(shape[key]).generate(randomSource)])
-      ) as { [K in keyof T]: ReturnType<T[K]> },
+      ) as { [K in keyof T]: InferValue<T[K]> },
       (value) => shrinkObject(value, shape)
     );
   },
@@ -418,22 +424,10 @@ export const gen = {
    * const tupleGen = gen.tuple(gen.int(1, 1), gen.string(3), gen.bool());
    * ```
    */
-  tuple<T extends Array<Arbitrary<unknown> | Gen<unknown>>>(...items: T): Arbitrary<{
-    [K in keyof T]: T[K] extends Arbitrary<infer U>
-      ? U
-      : T[K] extends Gen<infer V>
-        ? V
-        : never
-  }> {
+  tuple<T extends Array<Arbitrary<unknown> | Gen<unknown>>>(...items: T): Arbitrary<{ [K in keyof T]: InferValue<T[K]> }> {
     const arbitraries = items.map((item) => toArbitrary(item));
     return createArbitrary(
-      (randomSource) => arbitraries.map((arbitrary) => arbitrary.generate(randomSource)) as {
-        [K in keyof T]: T[K] extends Arbitrary<infer U>
-          ? U
-          : T[K] extends Gen<infer V>
-            ? V
-            : never
-      },
+      (randomSource) => arbitraries.map((arbitrary) => arbitrary.generate(randomSource)) as { [K in keyof T]: InferValue<T[K]> },
       (value) => shrinkTuple(value, arbitraries)
     );
   },
@@ -575,14 +569,14 @@ function* shrinkArray<T>(value: T[], shrinkItem: Shrink<T>): Iterable<T[]> {
 }
 
 function* shrinkObject<T extends GenShape>(
-  value: { [K in keyof T]: ReturnType<T[K]> },
+  value: { [K in keyof T]: InferValue<T[K]> },
   shape: T
-): Iterable<{ [K in keyof T]: ReturnType<T[K]> }> {
+): Iterable<{ [K in keyof T]: InferValue<T[K]> }> {
   const shrinkCandidates = Object.keys(shape).flatMap((key) => {
     const typedKey = key as keyof T;
     const arbitrary = toArbitrary(shape[typedKey]);
     return collectIterable(arbitrary.shrink(value[typedKey]))
-      .map((shrunk) => ({ ...value, [typedKey]: shrunk as ReturnType<T[keyof T]> }));
+      .map((shrunk) => ({ ...value, [typedKey]: shrunk as InferValue<T[keyof T]> }));
   });
   yield* shrinkCandidates;
 }

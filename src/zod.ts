@@ -22,52 +22,52 @@ export function zodArbitrary<T extends z.ZodTypeAny>(schema: T): Arbitrary<z.inf
 
 function buildArbitrary(schema: z.ZodTypeAny): Arbitrary<unknown> {
   if (schema instanceof z.ZodString) {
-    return stringArbitrary(schema);
+    return stringArbitrary(schema) as Arbitrary<unknown>;
   }
   if (schema instanceof z.ZodNumber) {
-    return numberArbitrary(schema);
+    return numberArbitrary(schema) as Arbitrary<unknown>;
   }
   if (schema instanceof z.ZodBoolean) {
-    return gen.bool();
+    return gen.bool() as Arbitrary<unknown>;
   }
   if (schema instanceof z.ZodArray) {
-    return arrayArbitrary(schema);
+    return arrayArbitrary(schema) as Arbitrary<unknown>;
   }
   if (schema instanceof z.ZodObject) {
-    return objectArbitrary(schema);
+    return objectArbitrary(schema) as Arbitrary<unknown>;
   }
   if (schema instanceof z.ZodRecord) {
-    return recordArbitrary(schema);
+    return recordArbitrary(schema) as Arbitrary<unknown>;
   }
   if (schema instanceof z.ZodTuple) {
-    return tupleArbitrary(schema);
+    return tupleArbitrary(schema) as Arbitrary<unknown>;
   }
   if (schema instanceof z.ZodMap) {
-    return mapArbitrary(schema);
+    return mapArbitrary(schema) as Arbitrary<unknown>;
   }
   if (schema instanceof z.ZodSet) {
-    return setArbitrary(schema);
+    return setArbitrary(schema) as Arbitrary<unknown>;
   }
   if (schema instanceof z.ZodDiscriminatedUnion) {
-    return discriminatedUnionArbitrary(schema);
+    return discriminatedUnionArbitrary(schema) as Arbitrary<unknown>;
   }
   if (schema instanceof z.ZodOptional) {
-    return gen.optional(buildArbitrary(schema.unwrap()));
+    return gen.optional(buildArbitrary(schema.unwrap())) as Arbitrary<unknown>;
   }
   if (schema instanceof z.ZodNullable) {
-    return gen.oneOf(literalArbitrary(null), buildArbitrary(schema.unwrap()));
+    return gen.oneOf(literalArbitrary(null) as Arbitrary<unknown>, buildArbitrary(schema.unwrap())) as Arbitrary<unknown>;
   }
   if (schema instanceof z.ZodLiteral) {
-    return literalArbitrary(schema.value);
+    return literalArbitrary(schema.value) as Arbitrary<unknown>;
   }
   if (schema instanceof z.ZodEnum) {
-    return enumArbitrary(schema);
+    return enumArbitrary(schema) as Arbitrary<unknown>;
   }
   if (schema instanceof z.ZodNativeEnum) {
-    return nativeEnumArbitrary(schema);
+    return nativeEnumArbitrary(schema) as Arbitrary<unknown>;
   }
   if (schema instanceof z.ZodUnion) {
-    return unionArbitrary(schema);
+    return unionArbitrary(schema) as Arbitrary<unknown>;
   }
 
   throw new TypeError(`Unsupported Zod schema type: ${schema._def.typeName}`);
@@ -132,7 +132,7 @@ function enumArbitrary(schema: z.ZodEnum<[string, ...string[]]>): Arbitrary<stri
   );
 }
 
-function nativeEnumArbitrary(schema: z.ZodNativeEnum<Record<string, string | number>>): Arbitrary<string | number> {
+function nativeEnumArbitrary(schema: z.ZodNativeEnum<z.EnumLike>): Arbitrary<string | number> {
   const values = Object.values(schema.enum).filter((value) => typeof value === 'string' || typeof value === 'number');
   if (values.length === 0) {
     throw new RangeError('native enum must contain string or number values');
@@ -163,7 +163,7 @@ function discriminatedUnionArbitrary(schema: z.ZodDiscriminatedUnion<string, z.Z
   return gen.oneOf(...options);
 }
 
-function mapArbitrary(schema: z.ZodMap<z.ZodTypeAny, z.ZodTypeAny>): Arbitrary<Map<unknown, unknown>> {
+function mapArbitrary(schema: z.ZodMap<z.ZodTypeAny, z.ZodTypeAny>): Arbitrary<Map<string, unknown>> {
   const keyArbitrary = buildArbitrary(schema.keySchema);
   const valueArbitrary = buildArbitrary(schema.valueSchema);
   return gen.map(
