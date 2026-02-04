@@ -186,6 +186,13 @@ No. The Zod adapter is optional; core generators and fuzz helpers do not depend 
 - Half-open ranges: `gen.float(min, max)` generates values in `[min, max)`.
 - Fixed sizes: `gen.array(item, length)` creates fixed-length arrays; use `gen.uniqueArray` for variable length with uniqueness.
 
+## Defaults
+
+- `runs`: 100
+- `maxShrinks`: 1000
+- `gen.string(length)`: 8
+- `gen.array(item, length)`: 5
+
 ## Design notes
 
 Typefuzz prioritizes deterministic generation and shrinking. Shrinkers try smaller sizes first and then smaller values; the shrink budget (`maxShrinks`) bounds the total attempts.
