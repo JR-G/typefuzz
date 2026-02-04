@@ -6,6 +6,15 @@ TypeScript-first fuzz/property testing utilities with test runner integrations.
 
 Early scaffolding. The API is not stable yet.
 
+## Tooling
+
+This repo uses Bun for all commands.
+
+```sh
+bun install
+bun run test
+```
+
 ## Goals
 
 - Simple property-based test helper for Vitest and Jest

@@ -25,11 +25,11 @@
   "types": "./dist/index.d.ts",
   "files": ["dist", "README.md"],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "dev": "tsc -p tsconfig.json --watch",
+    "build": "bunx tsc -p tsconfig.json",
+    "dev": "bunx tsc -p tsconfig.json --watch",
     "clean": "rm -rf dist",
-    "lint": "eslint .",
-    "test": "vitest run"
+    "lint": "bunx eslint .",
+    "test": "bunx vitest run"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
