@@ -2,7 +2,16 @@ export * from './generators.js';
 export * from './core.js';
 export * from './property.js';
 
-import { fuzzAssert, fuzzReplay, runProperty, runReplay, type PropertyFailure, type PropertyResult } from './property.js';
+import {
+  fuzzAssert,
+  fuzzReplay,
+  runProperty,
+  runReplay,
+  serializeFailure,
+  type PropertyFailure,
+  type PropertyResult,
+  type SerializedFailure
+} from './property.js';
 import type { Arbitrary, Gen, PropertyConfig } from './core.js';
 import type { ReplayConfig } from './property.js';
 
@@ -21,7 +30,11 @@ export const fuzz = {
   },
   assertReplay<T>(arb: Arbitrary<T> | Gen<T>, predicate: (value: T) => boolean | void, config: ReplayConfig): void {
     return fuzzReplay(arb, predicate, config);
+  },
+  serializeFailure<T>(failure: PropertyFailure<T>): SerializedFailure<T> {
+    return serializeFailure(failure);
   }
 };
 
 export type { PropertyFailure, PropertyResult };
+export type { SerializedFailure };

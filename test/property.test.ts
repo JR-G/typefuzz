@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { gen } from '../src/generators.js';
 import { fuzz } from '../src/index.js';
 import { createSeededRng } from '../src/core.js';
-import { fuzzAssert, runProperty, runReplay } from '../src/property.js';
+import { fuzzAssert, runProperty, runReplay, serializeFailure } from '../src/property.js';
 
 describe('property runner', () => {
   it('shrinks to minimal counterexample', () => {
@@ -39,6 +39,15 @@ describe('property runner', () => {
       const nonReplayResult = runProperty(arbitrary, (value) => value === expected, { seed: otherSeed, runs: 1 });
       expect(nonReplayResult.ok).toBe(false);
     }
+  });
+
+  it('serializes failures', () => {
+    const result = runProperty(gen.int(1, 10), () => false, { seed: 42, runs: 1, maxShrinks: 10 });
+    expect(result.ok).toBe(false);
+    const serialized = serializeFailure(result.failure!);
+    expect(serialized.seed).toBe(42);
+    expect(serialized.counterexample).toBe(1);
+    expect(serialized.message).toContain('seed: 42');
   });
 });
 

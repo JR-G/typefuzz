@@ -21,6 +21,18 @@ export interface PropertyResult<T> {
 }
 
 /**
+ * JSON-serializable representation of a property failure.
+ */
+export interface SerializedFailure<T> {
+  seed: number;
+  runs: number;
+  iterations: number;
+  shrinks: number;
+  counterexample: T;
+  message: string;
+}
+
+/**
  * Config used to replay a specific seed.
  */
 export interface ReplayConfig extends Omit<PropertyConfig, 'seed'> {
@@ -38,6 +50,20 @@ export function formatFailure<T>(failure: PropertyFailure<T>): string {
     `shrinks: ${shrinks}`,
     `counterexample: ${formatValue(counterexample)}`
   ].join('\n');
+}
+
+/**
+ * Convert a failure into a JSON-friendly payload.
+ */
+export function serializeFailure<T>(failure: PropertyFailure<T>): SerializedFailure<T> {
+  return {
+    seed: failure.seed,
+    runs: failure.runs,
+    iterations: failure.iterations,
+    shrinks: failure.shrinks,
+    counterexample: failure.counterexample,
+    message: formatFailure(failure)
+  };
 }
 
 /**
