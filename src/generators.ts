@@ -12,7 +12,7 @@ export const gen = {
   int(min = 0, max = 100): Arbitrary<number> {
     assertRange(min, max, 'int');
     return createArbitrary(
-      (rng) => Math.floor(rng() * (max - min + 1)) + min,
+      (randomSource) => Math.floor(randomSource() * (max - min + 1)) + min,
       (value) => shrinkInt(value, min, max)
     );
   },
@@ -22,7 +22,7 @@ export const gen = {
   float(min = 0, max = 1): Arbitrary<number> {
     assertRange(min, max, 'float');
     return createArbitrary(
-      (rng) => rng() * (max - min) + min,
+      (randomSource) => randomSource() * (max - min) + min,
       (value) => shrinkFloat(value, min, max)
     );
   },
@@ -31,7 +31,7 @@ export const gen = {
    */
   bool(): Arbitrary<boolean> {
     return createArbitrary(
-      (rng) => rng() >= 0.5,
+      (randomSource) => randomSource() >= 0.5,
       (value) => (value ? [false] : [])
     );
   },
@@ -49,10 +49,7 @@ export const gen = {
       throw new RangeError('constantFrom requires at least one value');
     }
     return createArbitrary(
-      (rng) => {
-        const index = Math.floor(rng() * values.length);
-        return values[index];
-      },
+      (randomSource) => values[Math.floor(randomSource() * values.length)],
       (value) => (Object.is(value, values[0]) ? [] : [values[0]])
     );
   },
@@ -70,14 +67,13 @@ export const gen = {
     }
     const arbitrary = toArbitrary(valueArbitrary);
     return createArbitrary(
-      (rng) => {
-        const keyCount = randomInt(rng, minKeys, maxKeys);
-        const record: Record<string, T> = {};
-        for (let index = 0; index < keyCount; index += 1) {
-          const key = randomKey(rng, index);
-          record[key] = arbitrary.generate(rng);
-        }
-        return record;
+      (randomSource) => {
+        const keyCount = randomInt(randomSource, minKeys, maxKeys);
+        return Array.from({ length: keyCount }, (_, index) => randomKey(randomSource, index))
+          .reduce<Record<string, T>>((record, key) => {
+            record[key] = arbitrary.generate(randomSource);
+            return record;
+          }, {});
       },
       (value) => shrinkRecord(value, arbitrary)
     );
@@ -89,13 +85,7 @@ export const gen = {
     assertLength(length, 'string length');
     const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
     return createArbitrary(
-      (rng) => {
-        let out = '';
-        for (let index = 0; index < length; index += 1) {
-          out += chars[Math.floor(rng() * chars.length)];
-        }
-        return out;
-      },
+      (randomSource) => Array.from({ length }, () => chars[Math.floor(randomSource() * chars.length)]).join(''),
       (value) => shrinkString(value)
     );
   },
@@ -104,10 +94,10 @@ export const gen = {
    */
   array<T>(item: Arbitrary<T> | Gen<T>, length = 5): Arbitrary<T[]> {
     assertLength(length, 'array length');
-    const arb = toArbitrary(item);
+    const arbitrary = toArbitrary(item);
     return createArbitrary(
-      (rng) => Array.from({ length }, () => arb.generate(rng)),
-      (value) => shrinkArray(value, arb.shrink)
+      (randomSource) => Array.from({ length }, () => arbitrary.generate(randomSource)),
+      (value) => shrinkArray(value, arbitrary.shrink)
     );
   },
   /**
@@ -115,13 +105,9 @@ export const gen = {
    */
   object<T extends GenShape>(shape: T): Arbitrary<{ [K in keyof T]: ReturnType<T[K]> }> {
     return createArbitrary(
-      (rng) => {
-        const out: Record<string, unknown> = {};
-        for (const key of Object.keys(shape)) {
-          out[key] = toArbitrary(shape[key]).generate(rng);
-        }
-        return out as { [K in keyof T]: ReturnType<T[K]> };
-      },
+      (randomSource) => Object.fromEntries(
+        Object.keys(shape).map((key) => [key, toArbitrary(shape[key]).generate(randomSource)])
+      ) as { [K in keyof T]: ReturnType<T[K]> },
       (value) => shrinkObject(value, shape)
     );
   },
@@ -134,9 +120,9 @@ export const gen = {
     }
     const arbitraries = options.map((option) => toArbitrary(option));
     return createArbitrary(
-      (rng) => {
-        const index = Math.floor(rng() * arbitraries.length);
-        return arbitraries[index].generate(rng);
+      (randomSource) => {
+        const index = Math.floor(randomSource() * arbitraries.length);
+        return arbitraries[index].generate(randomSource);
       },
       (value) => shrinkOneOf(value, arbitraries)
     );
@@ -153,7 +139,7 @@ export const gen = {
   }> {
     const arbitraries = items.map((item) => toArbitrary(item));
     return createArbitrary(
-      (rng) => arbitraries.map((arb) => arb.generate(rng)) as {
+      (randomSource) => arbitraries.map((arbitrary) => arbitrary.generate(randomSource)) as {
         [K in keyof T]: T[K] extends Arbitrary<infer U>
           ? U
           : T[K] extends Gen<infer V>
@@ -172,7 +158,7 @@ export const gen = {
     }
     const arbitrary = toArbitrary(item);
     return createArbitrary(
-      (rng) => (rng() < undefinedProbability ? undefined : arbitrary.generate(rng)),
+      (randomSource) => (randomSource() < undefinedProbability ? undefined : arbitrary.generate(randomSource)),
       (value) => (value === undefined ? [] : [undefined, ...arbitrary.shrink(value)])
     );
   },
@@ -182,7 +168,7 @@ export const gen = {
   map<T, U>(item: Arbitrary<T> | Gen<T>, mapper: (value: T) => U, unmap?: (value: U) => T | undefined): Arbitrary<U> {
     const arbitrary = toArbitrary(item);
     return createArbitrary(
-      (rng) => mapper(arbitrary.generate(rng)),
+      (randomSource) => mapper(arbitrary.generate(randomSource)),
       (value) => shrinkMapped(value, arbitrary, mapper, unmap)
     );
   },
@@ -195,7 +181,7 @@ export const gen = {
     }
     const arbitrary = toArbitrary(item);
     return createArbitrary(
-      (rng) => generateFilteredValue(arbitrary, predicate, rng, maxAttempts),
+      (randomSource) => generateFilteredValue(arbitrary, predicate, randomSource, maxAttempts),
       (value) => shrinkFiltered(value, arbitrary, predicate)
     );
   }
@@ -275,56 +261,40 @@ function* shrinkArray<T>(value: T[], shrinkItem: Shrink<T>): Iterable<T[]> {
   if (value.length === 0) {
     return;
   }
-  let length = Math.floor(value.length / 2);
-  while (length >= 0) {
-    yield value.slice(0, length);
-    if (length === 0) {
-      break;
-    }
-    length = Math.floor(length / 2);
+  const prefixLengths = shrinkLengths(value.length);
+  for (const prefixLength of prefixLengths) {
+    yield value.slice(0, prefixLength);
   }
-  for (let index = 0; index < value.length; index += 1) {
-    for (const shrunk of shrinkItem(value[index])) {
-      const next = value.slice();
-      next[index] = shrunk;
-      yield next;
-    }
-  }
+  const shrinkCandidates = value.flatMap((item, index) =>
+    collectIterable(shrinkItem(item)).map((shrunk) => replaceAt(value, index, shrunk))
+  );
+  yield* shrinkCandidates;
 }
 
 function* shrinkObject<T extends GenShape>(
   value: { [K in keyof T]: ReturnType<T[K]> },
   shape: T
 ): Iterable<{ [K in keyof T]: ReturnType<T[K]> }> {
-  for (const key of Object.keys(shape)) {
+  const shrinkCandidates = Object.keys(shape).flatMap((key) => {
     const typedKey = key as keyof T;
     const arbitrary = toArbitrary(shape[typedKey]);
-    for (const shrunk of arbitrary.shrink(value[typedKey])) {
-      const next = { ...value };
-      next[typedKey] = shrunk as ReturnType<T[keyof T]>;
-      yield next;
-    }
-  }
+    return collectIterable(arbitrary.shrink(value[typedKey]))
+      .map((shrunk) => ({ ...value, [typedKey]: shrunk as ReturnType<T[keyof T]> }));
+  });
+  yield* shrinkCandidates;
 }
 
 function* shrinkOneOf<T>(value: T, arbitraries: Array<Arbitrary<T>>): Iterable<T> {
-  for (const arbitrary of arbitraries) {
-    for (const shrunk of arbitrary.shrink(value)) {
-      yield shrunk;
-    }
-  }
+  const shrinkCandidates = arbitraries.flatMap((arbitrary) => collectIterable(arbitrary.shrink(value)));
+  yield* shrinkCandidates;
 }
 
 function* shrinkTuple<T extends unknown[]>(value: T, arbitraries: Array<Arbitrary<unknown>>): Iterable<T> {
-  for (let index = 0; index < value.length; index += 1) {
-    const arbitrary = arbitraries[index];
-    const current = value[index];
-    for (const shrunk of arbitrary.shrink(current)) {
-      const next = value.slice() as T;
-      next[index] = shrunk as T[number];
-      yield next;
-    }
-  }
+  const shrinkCandidates = value.flatMap((current, index) =>
+    collectIterable(arbitraries[index].shrink(current))
+      .map((shrunk) => replaceAt(value, index, shrunk) as T)
+  );
+  yield* shrinkCandidates;
 }
 
 function* shrinkRecord<T>(value: Record<string, T>, arbitrary: Arbitrary<T>): Iterable<Record<string, T>> {
@@ -332,34 +302,21 @@ function* shrinkRecord<T>(value: Record<string, T>, arbitrary: Arbitrary<T>): It
   if (entries.length === 0) {
     return;
   }
-  let length = Math.floor(entries.length / 2);
-  while (length >= 0) {
-    const next: Record<string, T> = {};
-    for (let index = 0; index < length; index += 1) {
-      const [key, entryValue] = entries[index];
-      next[key] = entryValue;
-    }
-    yield next;
-    if (length === 0) {
-      break;
-    }
-    length = Math.floor(length / 2);
-  }
-  for (const [key, entryValue] of entries) {
-    for (const shrunk of arbitrary.shrink(entryValue)) {
-      const next = { ...value };
-      next[key] = shrunk;
-      yield next;
-    }
-  }
+  const prefixLengths = shrinkLengths(entries.length);
+  const prefixCandidates = prefixLengths.map((prefixLength) => Object.fromEntries(entries.slice(0, prefixLength)));
+  const valueCandidates = entries.flatMap(([key, entryValue]) =>
+    collectIterable(arbitrary.shrink(entryValue)).map((shrunk) => ({ ...value, [key]: shrunk }))
+  );
+  yield* prefixCandidates;
+  yield* valueCandidates;
 }
 
-function randomInt(rng: () => number, min: number, max: number): number {
-  return Math.floor(rng() * (max - min + 1)) + min;
+function randomInt(randomSource: () => number, min: number, max: number): number {
+  return Math.floor(randomSource() * (max - min + 1)) + min;
 }
 
-function randomKey(rng: () => number, index: number): string {
-  return `key_${index}_${Math.floor(rng() * 1_000_000)}`;
+function randomKey(randomSource: () => number, index: number): string {
+  return `key_${index}_${Math.floor(randomSource() * 1_000_000)}`;
 }
 
 function* shrinkMapped<T, U>(
@@ -380,20 +337,51 @@ function* shrinkMapped<T, U>(
   }
 }
 
-function generateFilteredValue<T>(arbitrary: Arbitrary<T>, predicate: (value: T) => boolean, rng: () => number, maxAttempts: number): T {
-  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-    const value = arbitrary.generate(rng);
-    if (predicate(value)) {
-      return value;
+function generateFilteredValue<T>(arbitrary: Arbitrary<T>, predicate: (value: T) => boolean, randomSource: () => number, maxAttempts: number): T {
+  const attempts = Array.from({ length: maxAttempts }, () => arbitrary.generate(randomSource));
+  const result = attempts.reduce<{ found: boolean; value: T | undefined }>((state, candidate) => {
+    if (state.found) {
+      return state;
     }
+    if (predicate(candidate)) {
+      return { found: true, value: candidate };
+    }
+    return state;
+  }, { found: false, value: undefined });
+  if (result.found) {
+    return result.value as T;
   }
   throw new RangeError('filter predicate rejected all generated values');
 }
 
 function* shrinkFiltered<T>(value: T, arbitrary: Arbitrary<T>, predicate: (value: T) => boolean): Iterable<T> {
-  for (const candidate of arbitrary.shrink(value)) {
-    if (predicate(candidate)) {
-      yield candidate;
-    }
+  const shrinkCandidates = collectIterable(arbitrary.shrink(value))
+    .filter(predicate);
+  yield* shrinkCandidates;
+}
+
+function collectIterable<T>(iterable: Iterable<T>): T[] {
+  return Array.from(iterable);
+}
+
+function replaceAt<T>(items: T[], index: number, value: T): T[] {
+  const next = items.slice();
+  next[index] = value;
+  return next;
+}
+
+function shrinkLengths(length: number): number[] {
+  if (length === 0) {
+    return [];
   }
+  const lengths: number[] = [];
+  let currentLength = Math.floor(length / 2);
+  while (currentLength >= 0) {
+    lengths.push(currentLength);
+    if (currentLength === 0) {
+      break;
+    }
+    currentLength = Math.floor(currentLength / 2);
+  }
+  return lengths;
 }

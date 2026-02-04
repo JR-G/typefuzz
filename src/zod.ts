@@ -57,9 +57,9 @@ function stringArbitrary(schema: z.ZodString): Arbitrary<string> {
     return gen.string(lengthMin);
   }
   return createArbitrary(
-    (rng) => {
-      const length = randomInt(rng, lengthMin, lengthMax);
-      return randomString(rng, length);
+    (randomSource) => {
+      const length = randomInt(randomSource, lengthMin, lengthMax);
+      return randomString(randomSource, length);
     },
     (value) => shrinkString(value)
   );
@@ -84,13 +84,9 @@ function arrayArbitrary(schema: z.ZodArray<z.ZodTypeAny>): Arbitrary<unknown[]> 
   }
 
   return createArbitrary(
-    (rng) => {
-      const length = randomInt(rng, lengthMin, lengthMax);
-      const out: unknown[] = [];
-      for (let index = 0; index < length; index += 1) {
-        out.push(itemArbitrary.generate(rng));
-      }
-      return out;
+    (randomSource) => {
+      const length = randomInt(randomSource, lengthMin, lengthMax);
+      return Array.from({ length }, () => itemArbitrary.generate(randomSource));
     },
     (value) => shrinkArray(value, itemArbitrary)
   );
@@ -98,18 +94,16 @@ function arrayArbitrary(schema: z.ZodArray<z.ZodTypeAny>): Arbitrary<unknown[]> 
 
 function objectArbitrary(schema: z.ZodObject<Record<string, z.ZodTypeAny>>): Arbitrary<Record<string, unknown>> {
   const shape = schema.shape;
-  const entries = Object.entries(shape);
-  const mappedShape: Record<string, Arbitrary<unknown> | Gen<unknown>> = {};
-  for (const [key, value] of entries) {
-    mappedShape[key] = buildArbitrary(value);
-  }
+  const mappedShape = Object.fromEntries(
+    Object.entries(shape).map(([key, value]) => [key, buildArbitrary(value)])
+  ) as Record<string, Arbitrary<unknown> | Gen<unknown>>;
   return gen.object(mappedShape) as Arbitrary<Record<string, unknown>>;
 }
 
 function enumArbitrary(schema: z.ZodEnum<[string, ...string[]]>): Arbitrary<string> {
   const options = schema.options;
   return createArbitrary(
-    (rng) => options[Math.floor(rng() * options.length)],
+    (randomSource) => options[Math.floor(randomSource() * options.length)],
     (value) => (value === options[0] ? [] : [options[0]])
   );
 }
@@ -124,70 +118,60 @@ function literalArbitrary<T>(value: T): Arbitrary<T> {
 }
 
 function stringBounds(schema: z.ZodString): { min?: number; max?: number } {
-  let min: number | undefined;
-  let max: number | undefined;
-  for (const check of schema._def.checks) {
+  return schema._def.checks.reduce<{ min?: number; max?: number }>((state, check) => {
     if (check.kind === 'min') {
-      min = check.value;
+      return { ...state, min: check.value };
     }
     if (check.kind === 'max') {
-      max = check.value;
+      return { ...state, max: check.value };
     }
-  }
-  return { min, max };
+    return state;
+  }, {});
 }
 
 function numberBounds(schema: z.ZodNumber): { min?: number; max?: number; integer: boolean } {
-  let min: number | undefined;
-  let max: number | undefined;
-  let integer = false;
-  for (const check of schema._def.checks) {
+  return schema._def.checks.reduce<{ min?: number; max?: number; integer: boolean }>((state, check) => {
     if (check.kind === 'min') {
-      min = check.value;
+      return { ...state, min: check.value };
     }
     if (check.kind === 'max') {
-      max = check.value;
+      return { ...state, max: check.value };
     }
     if (check.kind === 'int') {
-      integer = true;
+      return { ...state, integer: true };
     }
-  }
-  return { min, max, integer };
+    return state;
+  }, { integer: false });
 }
 
 function arrayBounds(schema: z.ZodArray<z.ZodTypeAny>): { min?: number; max?: number } {
-  let min: number | undefined;
-  let max: number | undefined;
-  for (const check of schema._def.exactLength ? [schema._def.exactLength] : []) {
-    if (check.value !== undefined) {
-      min = check.value;
-      max = check.value;
+  const constraints = [
+    schema._def.exactLength ? { kind: 'exact', value: schema._def.exactLength.value } : undefined,
+    schema._def.minLength ? { kind: 'min', value: schema._def.minLength.value } : undefined,
+    schema._def.maxLength ? { kind: 'max', value: schema._def.maxLength.value } : undefined
+  ].filter((entry): entry is { kind: 'exact' | 'min' | 'max'; value: number } => Boolean(entry));
+
+  return constraints.reduce<{ min?: number; max?: number }>((state, constraint) => {
+    if (constraint.kind === 'exact') {
+      return { min: constraint.value, max: constraint.value };
     }
-  }
-  for (const check of schema._def.minLength ? [schema._def.minLength] : []) {
-    if (check.value !== undefined) {
-      min = check.value;
+    if (constraint.kind === 'min') {
+      return { ...state, min: constraint.value };
     }
-  }
-  for (const check of schema._def.maxLength ? [schema._def.maxLength] : []) {
-    if (check.value !== undefined) {
-      max = check.value;
+    if (constraint.kind === 'max') {
+      return { ...state, max: constraint.value };
     }
-  }
-  return { min, max };
+    return state;
+  }, {});
 }
 
-function randomInt(rng: () => number, min: number, max: number): number {
-  return Math.floor(rng() * (max - min + 1)) + min;
+function randomInt(randomSource: () => number, min: number, max: number): number {
+  return Math.floor(randomSource() * (max - min + 1)) + min;
 }
 
-function randomString(rng: () => number, length: number): string {
+function randomString(randomSource: () => number, length: number): string {
   const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-  let out = '';
-  for (let index = 0; index < length; index += 1) {
-    out += chars[Math.floor(rng() * chars.length)];
-  }
-  return out;
+  return Array.from({ length }, () => chars[Math.floor(randomSource() * chars.length)]).join('');
 }
 
 function* shrinkString(value: string): Iterable<string> {
@@ -206,19 +190,34 @@ function* shrinkArray(value: unknown[], itemArbitrary: Arbitrary<unknown>): Iter
   if (value.length === 0) {
     return;
   }
-  let length = Math.floor(value.length / 2);
-  while (length >= 0) {
-    yield value.slice(0, length);
-    if (length === 0) {
+  const prefixLengths = shrinkLengths(value.length);
+  for (const prefixLength of prefixLengths) {
+    yield value.slice(0, prefixLength);
+  }
+  const shrinkCandidates = value.flatMap((item, index) =>
+    Array.from(itemArbitrary.shrink(item)).map((shrunk) => replaceAt(value, index, shrunk))
+  );
+  yield* shrinkCandidates;
+}
+
+function replaceAt<T>(items: T[], index: number, value: T): T[] {
+  const next = items.slice();
+  next[index] = value;
+  return next;
+}
+
+function shrinkLengths(length: number): number[] {
+  if (length === 0) {
+    return [];
+  }
+  const lengths: number[] = [];
+  let currentLength = Math.floor(length / 2);
+  while (currentLength >= 0) {
+    lengths.push(currentLength);
+    if (currentLength === 0) {
       break;
     }
-    length = Math.floor(length / 2);
+    currentLength = Math.floor(currentLength / 2);
   }
-  for (let index = 0; index < value.length; index += 1) {
-    for (const shrunk of itemArbitrary.shrink(value[index])) {
-      const next = value.slice();
-      next[index] = shrunk;
-      yield next;
-    }
-  }
+  return lengths;
 }

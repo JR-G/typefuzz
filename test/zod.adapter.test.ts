@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
-import { createSeededRng } from '../src/core.js';
+import { createSeededRandomSource } from '../src/core.js';
 import { zodArbitrary } from '../src/zod.js';
 
 describe('zod adapter', () => {
@@ -13,12 +13,12 @@ describe('zod adapter', () => {
       status: z.enum(['open', 'closed'])
     });
 
-    const rng = createSeededRng(42);
+    const randomSource = createSeededRandomSource(42);
     const arbitrary = zodArbitrary(schema);
-    for (let iteration = 0; iteration < 20; iteration += 1) {
-      const value = arbitrary.generate(rng);
+    Array.from({ length: 20 }).forEach(() => {
+      const value = arbitrary.generate(randomSource);
       expect(() => schema.parse(value)).not.toThrow();
-    }
+    });
   });
 
   it('supports optional and nullable', () => {
@@ -28,9 +28,9 @@ describe('zod adapter', () => {
       choice: z.union([z.literal('a'), z.literal('b')])
     });
 
-    const rng = createSeededRng(7);
+    const randomSource = createSeededRandomSource(7);
     const arbitrary = zodArbitrary(schema);
-    const value = arbitrary.generate(rng);
+    const value = arbitrary.generate(randomSource);
     expect(() => schema.parse(value)).not.toThrow();
   });
 });

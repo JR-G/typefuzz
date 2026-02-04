@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { createRunState, createSeededRng } from '../src/core.js';
+import { createRunState, createSeededRandomSource } from '../src/core.js';
 
 describe('core', () => {
   it('produces deterministic RNG values for the same seed', () => {
-    const rngA = createSeededRng(1234);
-    const rngB = createSeededRng(1234);
-    const sequenceA = [rngA(), rngA(), rngA(), rngA(), rngA()];
-    const sequenceB = [rngB(), rngB(), rngB(), rngB(), rngB()];
+    const randomSourceA = createSeededRandomSource(1234);
+    const randomSourceB = createSeededRandomSource(1234);
+    const sequenceA = [randomSourceA(), randomSourceA(), randomSourceA(), randomSourceA(), randomSourceA()];
+    const sequenceB = [randomSourceB(), randomSourceB(), randomSourceB(), randomSourceB(), randomSourceB()];
     expect(sequenceA).toEqual(sequenceB);
   });
 

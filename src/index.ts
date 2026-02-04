@@ -19,17 +19,17 @@ import type { ReplayConfig } from './property.js';
  * Ergonomic entrypoint for property testing.
  */
 export const fuzz = {
-  property<T>(arb: Arbitrary<T> | Gen<T>, predicate: (value: T) => boolean | void, config: PropertyConfig = {}): PropertyResult<T> {
-    return runProperty(arb, predicate, config);
+  property<T>(arbitraryInput: Arbitrary<T> | Gen<T>, predicate: (value: T) => boolean | void, config: PropertyConfig = {}): PropertyResult<T> {
+    return runProperty(arbitraryInput, predicate, config);
   },
-  assert<T>(arb: Arbitrary<T> | Gen<T>, predicate: (value: T) => boolean | void, config: PropertyConfig = {}): void {
-    return fuzzAssert(arb, predicate, config);
+  assert<T>(arbitraryInput: Arbitrary<T> | Gen<T>, predicate: (value: T) => boolean | void, config: PropertyConfig = {}): void {
+    return fuzzAssert(arbitraryInput, predicate, config);
   },
-  replay<T>(arb: Arbitrary<T> | Gen<T>, predicate: (value: T) => boolean | void, config: ReplayConfig): PropertyResult<T> {
-    return runReplay(arb, predicate, config);
+  replay<T>(arbitraryInput: Arbitrary<T> | Gen<T>, predicate: (value: T) => boolean | void, config: ReplayConfig): PropertyResult<T> {
+    return runReplay(arbitraryInput, predicate, config);
   },
-  assertReplay<T>(arb: Arbitrary<T> | Gen<T>, predicate: (value: T) => boolean | void, config: ReplayConfig): void {
-    return fuzzReplay(arb, predicate, config);
+  assertReplay<T>(arbitraryInput: Arbitrary<T> | Gen<T>, predicate: (value: T) => boolean | void, config: ReplayConfig): void {
+    return fuzzReplay(arbitraryInput, predicate, config);
   },
   serializeFailure<T>(failure: PropertyFailure<T>): SerializedFailure<T> {
     return serializeFailure(failure);

@@ -4,14 +4,14 @@
 export type Seed = number;
 
 /**
- * RNG function that returns a float in [0, 1).
+ * Random source that returns a float in [0, 1).
  */
-export type Rng = () => number;
+export type RandomSource = () => number;
 
 /**
- * Generator function that produces a value using the supplied RNG.
+ * Generator function that produces a value using the supplied random source.
  */
-export type Gen<T> = (rng: Rng) => T;
+export type Gen<T> = (randomSource: RandomSource) => T;
 
 /**
  * Shrinker function that yields smaller versions of a value.
@@ -56,7 +56,7 @@ export interface PropertyConfig extends RunConfig {
 export interface RunState {
   runs: number;
   seed: Seed;
-  rng: Rng;
+  randomSource: RandomSource;
 }
 
 /**
@@ -64,7 +64,7 @@ export interface RunState {
  *
  * Implementation uses xorshift32.
  */
-export function createSeededRng(seed: Seed): Rng {
+export function createSeededRandomSource(seed: Seed): RandomSource {
   let state = seed | 0;
   return () => {
     state ^= state << 13;
@@ -80,7 +80,7 @@ export function createSeededRng(seed: Seed): Rng {
 export function createRunState(config: RunConfig = {}): RunState {
   const seed = normalizeSeed(config.seed);
   const runs = normalizeRuns(config.runs);
-  return { seed, runs, rng: createSeededRng(seed) };
+  return { seed, runs, randomSource: createSeededRandomSource(seed) };
 }
 
 /**
@@ -93,11 +93,11 @@ export function createArbitrary<T>(generate: Gen<T>, shrink: Shrink<T>): Arbitra
 /**
  * Normalize an arbitrary; if a generator function is provided, use an empty shrinker.
  */
-export function normalizeArbitrary<T>(arb: Arbitrary<T> | Gen<T>): Arbitrary<T> {
-  if (typeof arb === 'function') {
-    return { generate: arb, shrink: () => [] };
+export function normalizeArbitrary<T>(arbitraryInput: Arbitrary<T> | Gen<T>): Arbitrary<T> {
+  if (typeof arbitraryInput === 'function') {
+    return { generate: arbitraryInput, shrink: () => [] };
   }
-  return arb;
+  return arbitraryInput;
 }
 
 function normalizeSeed(seed: Seed | undefined): Seed {

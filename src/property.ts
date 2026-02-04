@@ -69,13 +69,13 @@ export function serializeFailure<T>(failure: PropertyFailure<T>): SerializedFail
 /**
  * Execute a property with shrinking and return a structured result.
  */
-export function runProperty<T>(arb: Arbitrary<T> | Gen<T>, predicate: (value: T) => boolean | void, config: PropertyConfig = {}): PropertyResult<T> {
-  const { runs, seed, rng } = createRunState(config);
+export function runProperty<T>(arbitraryInput: Arbitrary<T> | Gen<T>, predicate: (value: T) => boolean | void, config: PropertyConfig = {}): PropertyResult<T> {
+  const { runs, seed, randomSource } = createRunState(config);
   const maxShrinks = normalizeMaxShrinks(config.maxShrinks);
-  const arbitrary = normalizeArbitrary(arb);
+  const arbitrary = normalizeArbitrary(arbitraryInput);
 
   for (let iteration = 0; iteration < runs; iteration += 1) {
-    const value = arbitrary.generate(rng);
+    const value = arbitrary.generate(randomSource);
     const failure = tryFailure(predicate, value);
     if (failure.failed) {
       const { counterexample, shrinks, error } = shrinkCounterexample(arbitrary, predicate, value, maxShrinks);
@@ -99,15 +99,15 @@ export function runProperty<T>(arb: Arbitrary<T> | Gen<T>, predicate: (value: T)
 /**
  * Replay a property with a specific seed.
  */
-export function runReplay<T>(arb: Arbitrary<T> | Gen<T>, predicate: (value: T) => boolean | void, config: ReplayConfig): PropertyResult<T> {
-  return runProperty(arb, predicate, { ...config, seed: config.seed });
+export function runReplay<T>(arbitraryInput: Arbitrary<T> | Gen<T>, predicate: (value: T) => boolean | void, config: ReplayConfig): PropertyResult<T> {
+  return runProperty(arbitraryInput, predicate, { ...config, seed: config.seed });
 }
 
 /**
  * Run a property and throw an Error on failure.
  */
-export function fuzzAssert<T>(arb: Arbitrary<T> | Gen<T>, predicate: (value: T) => boolean | void, config: PropertyConfig = {}): void {
-  const result = runProperty(arb, predicate, config);
+export function fuzzAssert<T>(arbitraryInput: Arbitrary<T> | Gen<T>, predicate: (value: T) => boolean | void, config: PropertyConfig = {}): void {
+  const result = runProperty(arbitraryInput, predicate, config);
   if (result.ok || !result.failure) {
     return;
   }
@@ -117,8 +117,8 @@ export function fuzzAssert<T>(arb: Arbitrary<T> | Gen<T>, predicate: (value: T) 
 /**
  * Replay a property with a specific seed and throw on failure.
  */
-export function fuzzReplay<T>(arb: Arbitrary<T> | Gen<T>, predicate: (value: T) => boolean | void, config: ReplayConfig): void {
-  fuzzAssert(arb, predicate, config);
+export function fuzzReplay<T>(arbitraryInput: Arbitrary<T> | Gen<T>, predicate: (value: T) => boolean | void, config: ReplayConfig): void {
+  fuzzAssert(arbitraryInput, predicate, config);
 }
 
 function normalizeMaxShrinks(maxShrinks: number | undefined): number {
@@ -141,7 +141,7 @@ function tryFailure<T>(predicate: (value: T) => boolean | void, value: T): { fai
   }
 }
 
-function shrinkCounterexample<T>(arb: Arbitrary<T>, predicate: (value: T) => boolean | void, value: T, maxShrinks: number): { counterexample: T; shrinks: number; error?: unknown } {
+function shrinkCounterexample<T>(arbitrary: Arbitrary<T>, predicate: (value: T) => boolean | void, value: T, maxShrinks: number): { counterexample: T; shrinks: number; error?: unknown } {
   let current = value;
   let shrinks = 0;
   let lastError: unknown;
@@ -149,7 +149,7 @@ function shrinkCounterexample<T>(arb: Arbitrary<T>, predicate: (value: T) => boo
   while (shrinks < maxShrinks) {
     let bestCandidate: T | undefined;
     let bestScore = Number.POSITIVE_INFINITY;
-    for (const candidate of arb.shrink(current)) {
+    for (const candidate of arbitrary.shrink(current)) {
       if (shrinks >= maxShrinks) {
         break;
       }
