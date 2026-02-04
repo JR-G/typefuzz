@@ -155,8 +155,11 @@ function* shrinkArray<T>(value: T[], shrinkItem: Shrink<T>): Iterable<T[]> {
     return;
   }
   let length = Math.floor(value.length / 2);
-  while (length > 0) {
+  while (length >= 0) {
     yield value.slice(0, length);
+    if (length === 0) {
+      break;
+    }
     length = Math.floor(length / 2);
   }
   for (let index = 0; index < value.length; index += 1) {
