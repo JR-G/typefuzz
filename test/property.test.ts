@@ -55,6 +55,13 @@ describe('property runner', () => {
     const typedError = error as Error & { fuzzFailure?: { seed: number } };
     expect(typedError.fuzzFailure?.seed).toBe(31);
   });
+
+  it('includes replay hint in error message', () => {
+    const error = catchError(() => fuzzAssert(gen.int(1, 10), () => false, { seed: 55, runs: 2, maxShrinks: 10 }));
+    const typedError = error as Error;
+    expect(typedError.message).toContain('replay:');
+    expect(typedError.message).toContain('seed: 55');
+  });
 });
 
 function catchError(action: () => void): unknown {

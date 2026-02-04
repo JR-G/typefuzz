@@ -53,6 +53,20 @@ export function formatFailure<T>(failure: PropertyFailure<T>): string {
 }
 
 /**
+ * Format a replay hint for a property failure.
+ */
+export function formatReplaySnippet(seed: number, runs: number): string {
+  return `replay: fuzz.assert(arbitrary, predicate, { seed: ${seed}, runs: ${runs} })`;
+}
+
+/**
+ * Format a property failure with a replay hint.
+ */
+export function formatFailureWithReplay<T>(failure: PropertyFailure<T>): string {
+  return [formatFailure(failure), formatReplaySnippet(failure.seed, failure.runs)].join('\n');
+}
+
+/**
  * Convert a failure into a JSON-friendly payload.
  */
 export function serializeFailure<T>(failure: PropertyFailure<T>): SerializedFailure<T> {
@@ -236,7 +250,7 @@ function formatValue(value: unknown): string {
 }
 
 function createFailureError<T>(failure: PropertyFailure<T>): Error {
-  const error = new Error(formatFailure(failure));
+  const error = new Error(formatFailureWithReplay(failure));
   const failureCause = failure.error;
   if (failureCause !== undefined) {
     error.cause = failureCause;
