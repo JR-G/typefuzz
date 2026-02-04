@@ -21,6 +21,13 @@ export interface PropertyResult<T> {
 }
 
 /**
+ * Config used to replay a specific seed.
+ */
+export interface ReplayConfig extends Omit<PropertyConfig, 'seed'> {
+  seed: number;
+}
+
+/**
  * Format a property failure into a readable multi-line message.
  */
 export function formatFailure<T>(failure: PropertyFailure<T>): string {
@@ -64,6 +71,13 @@ export function runProperty<T>(arb: Arbitrary<T> | Gen<T>, predicate: (value: T)
 }
 
 /**
+ * Replay a property with a specific seed.
+ */
+export function runReplay<T>(arb: Arbitrary<T> | Gen<T>, predicate: (value: T) => boolean | void, config: ReplayConfig): PropertyResult<T> {
+  return runProperty(arb, predicate, { ...config, seed: config.seed });
+}
+
+/**
  * Run a property and throw an Error on failure.
  */
 export function fuzzAssert<T>(arb: Arbitrary<T> | Gen<T>, predicate: (value: T) => boolean | void, config: PropertyConfig = {}): void {
@@ -75,6 +89,13 @@ export function fuzzAssert<T>(arb: Arbitrary<T> | Gen<T>, predicate: (value: T) 
     }
     throw error;
   }
+}
+
+/**
+ * Replay a property with a specific seed and throw on failure.
+ */
+export function fuzzReplay<T>(arb: Arbitrary<T> | Gen<T>, predicate: (value: T) => boolean | void, config: ReplayConfig): void {
+  fuzzAssert(arb, predicate, config);
 }
 
 function normalizeMaxShrinks(maxShrinks: number | undefined): number {

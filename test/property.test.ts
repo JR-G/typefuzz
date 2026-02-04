@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { gen } from '../src/generators.js';
 import { fuzz } from '../src/index.js';
-import { fuzzAssert, runProperty } from '../src/property.js';
+import { createSeededRng } from '../src/core.js';
+import { fuzzAssert, runProperty, runReplay } from '../src/property.js';
 
 describe('property runner', () => {
   it('shrinks to minimal counterexample', () => {
@@ -20,4 +21,28 @@ describe('property runner', () => {
     const result = fuzz.property(gen.bool(), () => true, { seed: 5, runs: 2 });
     expect(result.ok).toBe(true);
   });
+
+  it('replays with a specific seed', () => {
+    const expected = valueForSeed(11);
+    let otherSeed = 12;
+    while (otherSeed < 50 && valueForSeed(otherSeed) === expected) {
+      otherSeed += 1;
+    }
+    const arbitrary = {
+      generate: (localRng: () => number) => Math.floor(localRng() * 1000),
+      shrink: () => []
+    };
+    const replayResult = runReplay(arbitrary, (value) => value === expected, { seed: 11, runs: 1 });
+    expect(replayResult.ok).toBe(true);
+
+    if (otherSeed < 50) {
+      const nonReplayResult = runProperty(arbitrary, (value) => value === expected, { seed: otherSeed, runs: 1 });
+      expect(nonReplayResult.ok).toBe(false);
+    }
+  });
 });
+
+function valueForSeed(seed: number): number {
+  const rng = createSeededRng(seed);
+  return Math.floor(rng() * 1000);
+}
