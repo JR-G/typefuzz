@@ -128,6 +128,29 @@ export const gen = {
       (rng) => (rng() < undefinedProbability ? undefined : arbitrary.generate(rng)),
       (value) => (value === undefined ? [] : [undefined, ...arbitrary.shrink(value)])
     );
+  },
+  /**
+   * Transform an arbitrary by mapping its generated values.
+   */
+  map<T, U>(item: Arbitrary<T> | Gen<T>, mapper: (value: T) => U, unmap?: (value: U) => T | undefined): Arbitrary<U> {
+    const arbitrary = toArbitrary(item);
+    return createArbitrary(
+      (rng) => mapper(arbitrary.generate(rng)),
+      (value) => shrinkMapped(value, arbitrary, mapper, unmap)
+    );
+  },
+  /**
+   * Filter an arbitrary by a predicate, with retry protection.
+   */
+  filter<T>(item: Arbitrary<T> | Gen<T>, predicate: (value: T) => boolean, maxAttempts = 100): Arbitrary<T> {
+    if (!Number.isFinite(maxAttempts) || !Number.isInteger(maxAttempts) || maxAttempts <= 0) {
+      throw new RangeError('maxAttempts must be a positive integer');
+    }
+    const arbitrary = toArbitrary(item);
+    return createArbitrary(
+      (rng) => generateFilteredValue(arbitrary, predicate, rng, maxAttempts),
+      (value) => shrinkFiltered(value, arbitrary, predicate)
+    );
   }
 };
 
@@ -253,6 +276,42 @@ function* shrinkTuple<T extends unknown[]>(value: T, arbitraries: Array<Arbitrar
       const next = value.slice() as T;
       next[index] = shrunk as T[number];
       yield next;
+    }
+  }
+}
+
+function* shrinkMapped<T, U>(
+  value: U,
+  arbitrary: Arbitrary<T>,
+  mapper: (value: T) => U,
+  unmap?: (value: U) => T | undefined
+): Iterable<U> {
+  if (!unmap) {
+    return;
+  }
+  const original = unmap(value);
+  if (original === undefined) {
+    return;
+  }
+  for (const shrunk of arbitrary.shrink(original)) {
+    yield mapper(shrunk);
+  }
+}
+
+function generateFilteredValue<T>(arbitrary: Arbitrary<T>, predicate: (value: T) => boolean, rng: () => number, maxAttempts: number): T {
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    const value = arbitrary.generate(rng);
+    if (predicate(value)) {
+      return value;
+    }
+  }
+  throw new RangeError('filter predicate rejected all generated values');
+}
+
+function* shrinkFiltered<T>(value: T, arbitrary: Arbitrary<T>, predicate: (value: T) => boolean): Iterable<T> {
+  for (const candidate of arbitrary.shrink(value)) {
+    if (predicate(candidate)) {
+      yield candidate;
     }
   }
 }

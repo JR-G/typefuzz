@@ -77,4 +77,22 @@ describe('generators', () => {
     const value = generator.generate(rng);
     expect(value).toBe(5);
   });
+
+  it('supports map with unmap', () => {
+    const rng = createSeededRng(7);
+    const generator = gen.map(
+      gen.int(1, 1),
+      (value) => `value:${value}`,
+      (value) => (value === 'value:1' ? 1 : undefined)
+    );
+    const value = generator.generate(rng);
+    expect(value).toBe('value:1');
+  });
+
+  it('supports filter', () => {
+    const rng = createSeededRng(7);
+    const generator = gen.filter(gen.int(1, 10), (value) => value % 2 === 0, 50);
+    const value = generator.generate(rng);
+    expect(value % 2).toBe(0);
+  });
 });
