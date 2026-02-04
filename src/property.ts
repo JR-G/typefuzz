@@ -21,6 +21,19 @@ export interface PropertyResult<T> {
 }
 
 /**
+ * Format a property failure into a readable multi-line message.
+ */
+export function formatFailure<T>(failure: PropertyFailure<T>): string {
+  const { seed, iterations, runs, shrinks, counterexample } = failure;
+  return [
+    `property failed after ${iterations}/${runs} runs`,
+    `seed: ${seed}`,
+    `shrinks: ${shrinks}`,
+    `counterexample: ${formatValue(counterexample)}`
+  ].join('\n');
+}
+
+/**
  * Execute a property with shrinking and return a structured result.
  */
 export function runProperty<T>(arb: Arbitrary<T> | Gen<T>, predicate: (value: T) => boolean | void, config: PropertyConfig = {}): PropertyResult<T> {
@@ -56,9 +69,7 @@ export function runProperty<T>(arb: Arbitrary<T> | Gen<T>, predicate: (value: T)
 export function fuzzAssert<T>(arb: Arbitrary<T> | Gen<T>, predicate: (value: T) => boolean | void, config: PropertyConfig = {}): void {
   const result = runProperty(arb, predicate, config);
   if (!result.ok && result.failure) {
-    const { seed, iterations, runs, shrinks, counterexample } = result.failure;
-    const message = `property failed after ${iterations}/${runs} runs (seed ${seed}, shrinks ${shrinks})\ncounterexample: ${formatValue(counterexample)}`;
-    const error = new Error(message);
+    const error = new Error(formatFailure(result.failure));
     if (result.failure.error) {
       error.cause = result.failure.error;
     }
@@ -118,7 +129,7 @@ function shrinkCounterexample<T>(arb: Arbitrary<T>, predicate: (value: T) => boo
 
 function formatValue(value: unknown): string {
   try {
-    return JSON.stringify(value);
+    return JSON.stringify(value, null, 2);
   } catch {
     return String(value);
   }

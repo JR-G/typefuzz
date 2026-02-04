@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { gen } from '../src/generators.js';
+import { fuzz } from '../src/index.js';
 import { fuzzAssert, runProperty } from '../src/property.js';
 
 describe('property runner', () => {
@@ -12,6 +13,11 @@ describe('property runner', () => {
   it('throws with seed and counterexample details', () => {
     expect(() => {
       fuzzAssert(gen.int(1, 10), () => false, { seed: 77, runs: 1, maxShrinks: 50 });
-    }).toThrowError(/seed 77/);
+    }).toThrowError(/seed: 77/);
+  });
+
+  it('supports fuzz.property alias', () => {
+    const result = fuzz.property(gen.bool(), () => true, { seed: 5, runs: 2 });
+    expect(result.ok).toBe(true);
   });
 });
