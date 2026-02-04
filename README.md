@@ -104,3 +104,14 @@ const arb = zodArbitrary(schema);
 - `src/vitest.ts` Vitest adapter
 - `src/jest.ts` Jest adapter
 - `src/generators.ts` built-in generators
+
+## Test runner usage
+
+```ts
+import { fuzzIt } from 'typefuzz/vitest';
+import { gen } from 'typefuzz';
+
+fuzzIt('sum is commutative', gen.tuple(gen.int(0, 10), gen.int(0, 10)), ([left, right]) => {
+  return left + right === right + left;
+}, { runs: 200, seed: 123 });
+```
