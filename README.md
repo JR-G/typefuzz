@@ -166,3 +166,9 @@ Failures include a seed and run count. Use `fuzz.assertReplay` to reproduce the 
 
 Do I need Zod?  
 No. The Zod adapter is optional; core generators and fuzz helpers do not depend on it.
+
+## Conventions
+
+- Inclusive bounds: `gen.int(min, max)` and `gen.date(min, max)` include both ends.
+- Half-open ranges: `gen.float(min, max)` generates values in `[min, max)`.
+- Fixed sizes: `gen.array(item, length)` creates fixed-length arrays; use `gen.uniqueArray` for variable length with uniqueness.
