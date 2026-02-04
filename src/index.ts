@@ -7,6 +7,7 @@ import {
   fuzzReplay,
   runProperty,
   runReplay,
+  formatSerializedFailure,
   serializeFailure,
   type PropertyFailure,
   type PropertyResult,
@@ -33,6 +34,9 @@ export const fuzz = {
   },
   serializeFailure<T>(failure: PropertyFailure<T>): SerializedFailure<T> {
     return serializeFailure(failure);
+  },
+  formatSerializedFailure<T>(failure: SerializedFailure<T>): string {
+    return formatSerializedFailure(failure);
   }
 };
 

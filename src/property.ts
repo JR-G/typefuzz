@@ -83,6 +83,13 @@ export function serializeFailure<T>(failure: PropertyFailure<T>): SerializedFail
 }
 
 /**
+ * Format a serialized failure payload for display.
+ */
+export function formatSerializedFailure<T>(failure: SerializedFailure<T>): string {
+  return [failure.message, failure.replay].join('\n');
+}
+
+/**
  * Execute a property with shrinking and return a structured result.
  */
 export function runProperty<T>(arbitraryInput: Arbitrary<T> | Gen<T>, predicate: (value: T) => boolean | void, config: PropertyConfig = {}): PropertyResult<T> {
