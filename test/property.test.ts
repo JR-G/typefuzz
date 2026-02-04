@@ -49,7 +49,22 @@ describe('property runner', () => {
     expect(serialized.counterexample).toBe(1);
     expect(serialized.message).toContain('seed: 42');
   });
+
+  it('attaches failure metadata to thrown errors', () => {
+    const error = catchError(() => fuzzAssert(gen.int(1, 10), () => false, { seed: 31, runs: 1, maxShrinks: 10 }));
+    const typedError = error as Error & { fuzzFailure?: { seed: number } };
+    expect(typedError.fuzzFailure?.seed).toBe(31);
+  });
 });
+
+function catchError(action: () => void): unknown {
+  try {
+    action();
+    throw new Error('Expected error to be thrown');
+  } catch (error) {
+    return error;
+  }
+}
 
 function valueForSeed(seed: number): number {
   const rng = createSeededRng(seed);

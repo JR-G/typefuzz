@@ -111,12 +111,7 @@ export function fuzzAssert<T>(arb: Arbitrary<T> | Gen<T>, predicate: (value: T) 
   if (result.ok || !result.failure) {
     return;
   }
-  const error = new Error(formatFailure(result.failure));
-  const failureCause = result.failure.error;
-  if (failureCause !== undefined) {
-    error.cause = failureCause;
-  }
-  throw error;
+  throw createFailureError(result.failure);
 }
 
 /**
@@ -212,4 +207,14 @@ function formatValue(value: unknown): string {
   } catch {
     return String(value);
   }
+}
+
+function createFailureError<T>(failure: PropertyFailure<T>): Error {
+  const error = new Error(formatFailure(failure));
+  const failureCause = failure.error;
+  if (failureCause !== undefined) {
+    error.cause = failureCause;
+  }
+  (error as Error & { fuzzFailure?: SerializedFailure<T> }).fuzzFailure = serializeFailure(failure);
+  return error;
 }
