@@ -215,6 +215,27 @@ export const gen = {
     );
   },
   /**
+   * Generate a Date within a range (inclusive).
+   */
+  date(min = new Date(0), max = new Date()): Arbitrary<Date> {
+    const minTime = min.getTime();
+    const maxTime = max.getTime();
+    if (!Number.isFinite(minTime) || !Number.isFinite(maxTime)) {
+      throw new RangeError('date bounds must be valid dates');
+    }
+    if (minTime > maxTime) {
+      throw new RangeError('date bounds must have min <= max');
+    }
+    return createArbitrary(
+      (randomSource) => {
+        const range = maxTime - minTime;
+        const offset = Math.floor(randomSource() * (range + 1));
+        return new Date(minTime + offset);
+      },
+      (value) => shrinkDate(value, min, max)
+    );
+  },
+  /**
    * Fixed-length array generator.
    */
   array<T>(item: Arbitrary<T> | Gen<T>, length = 5): Arbitrary<T[]> {
@@ -537,6 +558,29 @@ function* shrinkUniqueArray<T>(value: T[], valueGenerator: Arbitrary<T>): Iterab
   );
   yield* prefixCandidates;
   yield* valueCandidates;
+}
+
+function* shrinkDate(value: Date, min: Date, max: Date): Iterable<Date> {
+  const valueTime = value.getTime();
+  const minTime = min.getTime();
+  const maxTime = max.getTime();
+  if (!Number.isFinite(valueTime) || !Number.isFinite(minTime) || !Number.isFinite(maxTime)) {
+    return;
+  }
+  const target = 0 >= minTime && 0 <= maxTime ? 0 : minTime;
+  let current = valueTime;
+  const steps = Array.from({ length: 32 }, (_, index) => index);
+  for (const _ of steps) {
+    const next = Math.floor((current + target) / 2);
+    if (next === current) {
+      return;
+    }
+    current = next;
+    if (current < minTime || current > maxTime) {
+      return;
+    }
+    yield new Date(current);
+  }
 }
 
 function randomInt(randomSource: () => number, min: number, max: number): number {
