@@ -2,6 +2,17 @@
 
 TypeScript-first fuzz/property testing utilities with test runner integrations.
 
+## Quickstart
+
+```ts
+import { fuzz, gen } from 'typefuzz';
+
+fuzz.assert(gen.array(gen.int(0, 10), 5), (values) => {
+  const doubleReversed = [...values].reverse().reverse();
+  return JSON.stringify(doubleReversed) === JSON.stringify(values);
+}, { runs: 100, seed: 123 });
+```
+
 ## Status
 
 Early scaffolding. The API is not stable yet.
