@@ -79,6 +79,38 @@ export const gen = {
     );
   },
   /**
+   * Generate a dictionary from a key arbitrary and a value arbitrary.
+   */
+  dictionary<V>(
+    keyArbitrary: Arbitrary<string> | Gen<string>,
+    valueArbitrary: Arbitrary<V> | Gen<V>,
+    options: { minKeys?: number; maxKeys?: number } = {}
+  ): Arbitrary<Record<string, V>> {
+    const minKeys = options.minKeys ?? 0;
+    const maxKeys = options.maxKeys ?? Math.max(minKeys, 3);
+    if (!Number.isInteger(minKeys) || minKeys < 0) {
+      throw new RangeError('minKeys must be a non-negative integer');
+    }
+    if (!Number.isInteger(maxKeys) || maxKeys < minKeys) {
+      throw new RangeError('maxKeys must be an integer >= minKeys');
+    }
+    const keyGenerator = toArbitrary(keyArbitrary);
+    const valueGenerator = toArbitrary(valueArbitrary);
+    return createArbitrary(
+      (randomSource) => {
+        const availableKeys = buildUniqueKeys(keyGenerator, randomSource, maxKeys);
+        if (availableKeys.length < minKeys) {
+          throw new RangeError('dictionary could not satisfy minKeys with unique keys');
+        }
+        const desiredKeyCount = randomInt(randomSource, minKeys, Math.min(maxKeys, availableKeys.length));
+        const selectedKeys = availableKeys.slice(0, desiredKeyCount);
+        const entries = selectedKeys.map((key) => [key, valueGenerator.generate(randomSource)] as const);
+        return Object.fromEntries(entries) as Record<string, V>;
+      },
+      (value) => shrinkDictionary(value, keyGenerator, valueGenerator)
+    );
+  },
+  /**
    * Lowercase alphanumeric string of a fixed length.
    */
   string(length = 8): Arbitrary<string> {
@@ -311,12 +343,55 @@ function* shrinkRecord<T>(value: Record<string, T>, arbitrary: Arbitrary<T>): It
   yield* valueCandidates;
 }
 
+function* shrinkDictionary<V>(
+  value: Record<string, V>,
+  keyGenerator: Arbitrary<string>,
+  valueGenerator: Arbitrary<V>
+): Iterable<Record<string, V>> {
+  const entries = Object.entries(value) as Array<[string, V]>;
+  if (entries.length === 0) {
+    return;
+  }
+  const prefixLengths = shrinkLengths(entries.length);
+  const prefixCandidates = prefixLengths.map((prefixLength) =>
+    Object.fromEntries(entries.slice(0, prefixLength)) as Record<string, V>
+  );
+  const valueCandidates = entries.flatMap(([key, entryValue]) =>
+    collectIterable(valueGenerator.shrink(entryValue)).map((shrunk) => ({ ...value, [key]: shrunk }))
+  );
+  const keyCandidates = entries.flatMap(([key, entryValue]) =>
+    collectIterable(keyGenerator.shrink(key)).map((shrunkKey) => {
+      const record = { ...value } as Record<string, V>;
+      delete record[key];
+      record[shrunkKey] = entryValue;
+      return record;
+    })
+  );
+  yield* prefixCandidates;
+  yield* valueCandidates;
+  yield* keyCandidates;
+}
+
 function randomInt(randomSource: () => number, min: number, max: number): number {
   return Math.floor(randomSource() * (max - min + 1)) + min;
 }
 
 function randomKey(randomSource: () => number, index: number): string {
   return `key_${index}_${Math.floor(randomSource() * 1_000_000)}`;
+}
+
+function buildUniqueKeys(
+  keyGenerator: Arbitrary<string>,
+  randomSource: () => number,
+  desiredCount: number
+): string[] {
+  const attemptsPerKey = 20;
+  const totalAttempts = desiredCount * attemptsPerKey;
+  const attemptList = Array.from({ length: totalAttempts }, () => keyGenerator.generate(randomSource));
+  return attemptList.reduce<string[]>((state, key) => {
+    const exists = state.includes(key);
+    return exists || state.length >= desiredCount ? state : state.concat([key]);
+  }, []);
 }
 
 function* shrinkMapped<T, U>(
