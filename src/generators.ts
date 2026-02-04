@@ -111,6 +111,34 @@ export const gen = {
     );
   },
   /**
+   * Generate a set (unique values) using an arbitrary.
+   */
+  set<T>(
+    valueArbitrary: Arbitrary<T> | Gen<T>,
+    options: { minSize?: number; maxSize?: number } = {}
+  ): Arbitrary<Set<T>> {
+    const minSize = options.minSize ?? 0;
+    const maxSize = options.maxSize ?? Math.max(minSize, 3);
+    if (!Number.isInteger(minSize) || minSize < 0) {
+      throw new RangeError('minSize must be a non-negative integer');
+    }
+    if (!Number.isInteger(maxSize) || maxSize < minSize) {
+      throw new RangeError('maxSize must be an integer >= minSize');
+    }
+    const valueGenerator = toArbitrary(valueArbitrary);
+    return createArbitrary(
+      (randomSource) => {
+        const targetSize = randomInt(randomSource, minSize, maxSize);
+        const values = buildUniqueValues(valueGenerator, randomSource, targetSize);
+        if (values.length < minSize) {
+          throw new RangeError('set could not satisfy minSize with unique values');
+        }
+        return new Set(values.slice(0, targetSize));
+      },
+      (value) => shrinkSet(value, valueGenerator)
+    );
+  },
+  /**
    * Lowercase alphanumeric string of a fixed length.
    */
   string(length = 8): Arbitrary<string> {
@@ -372,6 +400,24 @@ function* shrinkDictionary<V>(
   yield* keyCandidates;
 }
 
+function* shrinkSet<T>(value: Set<T>, valueGenerator: Arbitrary<T>): Iterable<Set<T>> {
+  const entries = Array.from(value.values());
+  if (entries.length === 0) {
+    return;
+  }
+  const prefixLengths = shrinkLengths(entries.length);
+  const prefixCandidates = prefixLengths.map((prefixLength) => new Set(entries.slice(0, prefixLength)));
+  const valueCandidates = entries.flatMap((entryValue, index) =>
+    collectIterable(valueGenerator.shrink(entryValue)).map((shrunk) => {
+      const next = entries.slice();
+      next[index] = shrunk;
+      return new Set(next);
+    })
+  );
+  yield* prefixCandidates;
+  yield* valueCandidates;
+}
+
 function randomInt(randomSource: () => number, min: number, max: number): number {
   return Math.floor(randomSource() * (max - min + 1)) + min;
 }
@@ -391,6 +437,20 @@ function buildUniqueKeys(
   return attemptList.reduce<string[]>((state, key) => {
     const exists = state.includes(key);
     return exists || state.length >= desiredCount ? state : state.concat([key]);
+  }, []);
+}
+
+function buildUniqueValues<T>(
+  valueGenerator: Arbitrary<T>,
+  randomSource: () => number,
+  desiredCount: number
+): T[] {
+  const attemptsPerValue = 20;
+  const totalAttempts = desiredCount * attemptsPerValue;
+  const attemptList = Array.from({ length: totalAttempts }, () => valueGenerator.generate(randomSource));
+  return attemptList.reduce<T[]>((state, value) => {
+    const exists = state.includes(value);
+    return exists || state.length >= desiredCount ? state : state.concat([value]);
   }, []);
 }
 
