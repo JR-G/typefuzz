@@ -139,6 +139,34 @@ export const gen = {
     );
   },
   /**
+   * Generate an array with unique values using an arbitrary.
+   */
+  uniqueArray<T>(
+    valueArbitrary: Arbitrary<T> | Gen<T>,
+    options: { minLength?: number; maxLength?: number } = {}
+  ): Arbitrary<T[]> {
+    const minLength = options.minLength ?? 0;
+    const maxLength = options.maxLength ?? Math.max(minLength, 3);
+    if (!Number.isInteger(minLength) || minLength < 0) {
+      throw new RangeError('minLength must be a non-negative integer');
+    }
+    if (!Number.isInteger(maxLength) || maxLength < minLength) {
+      throw new RangeError('maxLength must be an integer >= minLength');
+    }
+    const valueGenerator = toArbitrary(valueArbitrary);
+    return createArbitrary(
+      (randomSource) => {
+        const targetLength = randomInt(randomSource, minLength, maxLength);
+        const values = buildUniqueValues(valueGenerator, randomSource, targetLength);
+        if (values.length < minLength) {
+          throw new RangeError('uniqueArray could not satisfy minLength with unique values');
+        }
+        return values.slice(0, targetLength);
+      },
+      (value) => shrinkUniqueArray(value, valueGenerator)
+    );
+  },
+  /**
    * Lowercase alphanumeric string of a fixed length.
    */
   string(length = 8): Arbitrary<string> {
@@ -454,6 +482,21 @@ function* shrinkSet<T>(value: Set<T>, valueGenerator: Arbitrary<T>): Iterable<Se
       next[index] = shrunk;
       return new Set(next);
     })
+  );
+  yield* prefixCandidates;
+  yield* valueCandidates;
+}
+
+function* shrinkUniqueArray<T>(value: T[], valueGenerator: Arbitrary<T>): Iterable<T[]> {
+  if (value.length === 0) {
+    return;
+  }
+  const prefixLengths = shrinkLengths(value.length);
+  const prefixCandidates = prefixLengths.map((prefixLength) => value.slice(0, prefixLength));
+  const valueCandidates = value.flatMap((entryValue, index) =>
+    collectIterable(valueGenerator.shrink(entryValue))
+      .filter((shrunk) => !value.includes(shrunk))
+      .map((shrunk) => replaceAt(value, index, shrunk))
   );
   yield* prefixCandidates;
   yield* valueCandidates;
