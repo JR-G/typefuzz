@@ -103,28 +103,56 @@ function shrinkCounterexample<T>(arb: Arbitrary<T>, predicate: (value: T) => boo
   let lastError: unknown;
 
   while (shrinks < maxShrinks) {
-    let improved = false;
-  for (const candidate of arb.shrink(current)) {
-    if (shrinks >= maxShrinks) {
-      break;
-    }
-    shrinks += 1;
+    let bestCandidate: T | undefined;
+    let bestScore = Number.POSITIVE_INFINITY;
+    for (const candidate of arb.shrink(current)) {
+      if (shrinks >= maxShrinks) {
+        break;
+      }
+      shrinks += 1;
       const failure = tryFailure(predicate, candidate);
       if (failure.failed) {
-        current = candidate;
+        const score = scoreValue(candidate);
+        if (score < bestScore) {
+          bestScore = score;
+          bestCandidate = candidate;
+        }
         if (failure.error) {
           lastError = failure.error;
         }
-        improved = true;
-        break;
       }
     }
-    if (!improved) {
+    if (bestCandidate === undefined) {
       break;
     }
+    current = bestCandidate;
   }
 
   return { counterexample: current, shrinks, error: lastError };
+}
+
+function scoreValue(value: unknown): number {
+  if (typeof value === 'number') {
+    return Math.abs(value);
+  }
+  if (typeof value === 'string') {
+    return value.length;
+  }
+  if (Array.isArray(value)) {
+    return value.length;
+  }
+  if (value && typeof value === 'object') {
+    return jsonLength(value);
+  }
+  return 0;
+}
+
+function jsonLength(value: unknown): number {
+  try {
+    return JSON.stringify(value).length;
+  } catch {
+    return 0;
+  }
 }
 
 function formatValue(value: unknown): string {
