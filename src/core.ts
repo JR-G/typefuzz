@@ -9,6 +9,24 @@ export type Seed = number;
 export type Rng = () => number;
 
 /**
+ * Generator function that produces a value using the supplied RNG.
+ */
+export type Gen<T> = (rng: Rng) => T;
+
+/**
+ * Shrinker function that yields smaller versions of a value.
+ */
+export type Shrink<T> = (value: T) => Iterable<T>;
+
+/**
+ * Arbitrary value with generator and shrinker.
+ */
+export interface Arbitrary<T> {
+  generate: Gen<T>;
+  shrink: Shrink<T>;
+}
+
+/**
  * Configuration for fuzz/property runs.
  */
 export interface RunConfig {
@@ -20,6 +38,16 @@ export interface RunConfig {
    * Number of test runs to execute. Must be a positive integer.
    */
   runs?: number;
+}
+
+/**
+ * Shared config for property runs.
+ */
+export interface PropertyConfig extends RunConfig {
+  /**
+   * Maximum number of shrink attempts per failing case.
+   */
+  maxShrinks?: number;
 }
 
 /**
@@ -37,12 +65,12 @@ export interface RunState {
  * Implementation uses xorshift32.
  */
 export function createSeededRng(seed: Seed): Rng {
-  let x = seed | 0;
+  let state = seed | 0;
   return () => {
-    x ^= x << 13;
-    x ^= x >>> 17;
-    x ^= x << 5;
-    return (x >>> 0) / 0x100000000;
+    state ^= state << 13;
+    state ^= state >>> 17;
+    state ^= state << 5;
+    return (state >>> 0) / 0x100000000;
   };
 }
 
@@ -53,6 +81,23 @@ export function createRunState(config: RunConfig = {}): RunState {
   const seed = normalizeSeed(config.seed);
   const runs = normalizeRuns(config.runs);
   return { seed, runs, rng: createSeededRng(seed) };
+}
+
+/**
+ * Create an Arbitrary from a generator and shrinker.
+ */
+export function createArbitrary<T>(generate: Gen<T>, shrink: Shrink<T>): Arbitrary<T> {
+  return { generate, shrink };
+}
+
+/**
+ * Normalize an arbitrary; if a generator function is provided, use an empty shrinker.
+ */
+export function normalizeArbitrary<T>(arb: Arbitrary<T> | Gen<T>): Arbitrary<T> {
+  if (typeof arb === 'function') {
+    return { generate: arb, shrink: () => [] };
+  }
+  return arb;
 }
 
 function normalizeSeed(seed: Seed | undefined): Seed {

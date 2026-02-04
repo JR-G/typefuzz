@@ -3,11 +3,11 @@ import { createRunState, createSeededRng } from '../src/core.js';
 
 describe('core', () => {
   it('produces deterministic RNG values for the same seed', () => {
-    const a = createSeededRng(1234);
-    const b = createSeededRng(1234);
-    const seqA = [a(), a(), a(), a(), a()];
-    const seqB = [b(), b(), b(), b(), b()];
-    expect(seqA).toEqual(seqB);
+    const rngA = createSeededRng(1234);
+    const rngB = createSeededRng(1234);
+    const sequenceA = [rngA(), rngA(), rngA(), rngA(), rngA()];
+    const sequenceB = [rngB(), rngB(), rngB(), rngB(), rngB()];
+    expect(sequenceA).toEqual(sequenceB);
   });
 
   it('normalizes runs and seed', () => {

@@ -1,11 +1,6 @@
-import type { Rng } from './core.js';
+import { createArbitrary, type Arbitrary, type Gen, type Shrink } from './core.js';
 
-/**
- * Generator function that produces a value using the supplied RNG.
- */
-export type Gen<T> = (rng: Rng) => T;
-
-type GenShape = Record<string, Gen<unknown>>;
+type GenShape = Record<string, Arbitrary<unknown> | Gen<unknown>>;
 
 /**
  * Built-in generators.
@@ -14,55 +9,74 @@ export const gen = {
   /**
    * Integer generator inclusive of min and max.
    */
-  int(min = 0, max = 100): Gen<number> {
+  int(min = 0, max = 100): Arbitrary<number> {
     assertRange(min, max, 'int');
-    return (rng) => Math.floor(rng() * (max - min + 1)) + min;
+    return createArbitrary(
+      (rng) => Math.floor(rng() * (max - min + 1)) + min,
+      (value) => shrinkInt(value, min, max)
+    );
   },
   /**
    * Float generator within [min, max).
    */
-  float(min = 0, max = 1): Gen<number> {
+  float(min = 0, max = 1): Arbitrary<number> {
     assertRange(min, max, 'float');
-    return (rng) => rng() * (max - min) + min;
+    return createArbitrary(
+      (rng) => rng() * (max - min) + min,
+      (value) => shrinkFloat(value, min, max)
+    );
   },
   /**
    * Boolean generator.
    */
-  bool(): Gen<boolean> {
-    return (rng) => rng() >= 0.5;
+  bool(): Arbitrary<boolean> {
+    return createArbitrary(
+      (rng) => rng() >= 0.5,
+      (value) => (value ? [false] : [])
+    );
   },
   /**
    * Lowercase alphanumeric string of a fixed length.
    */
-  string(length = 8): Gen<string> {
+  string(length = 8): Arbitrary<string> {
     assertLength(length, 'string length');
     const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-    return (rng) => {
-      let out = '';
-      for (let i = 0; i < length; i += 1) {
-        out += chars[Math.floor(rng() * chars.length)];
-      }
-      return out;
-    };
+    return createArbitrary(
+      (rng) => {
+        let out = '';
+        for (let index = 0; index < length; index += 1) {
+          out += chars[Math.floor(rng() * chars.length)];
+        }
+        return out;
+      },
+      (value) => shrinkString(value)
+    );
   },
   /**
    * Fixed-length array generator.
    */
-  array<T>(item: Gen<T>, length = 5): Gen<T[]> {
+  array<T>(item: Arbitrary<T> | Gen<T>, length = 5): Arbitrary<T[]> {
     assertLength(length, 'array length');
-    return (rng) => Array.from({ length }, () => item(rng));
+    const arb = toArbitrary(item);
+    return createArbitrary(
+      (rng) => Array.from({ length }, () => arb.generate(rng)),
+      (value) => shrinkArray(value, arb.shrink)
+    );
   },
   /**
    * Object generator from a generator shape map.
    */
-  object<T extends GenShape>(shape: T): Gen<{ [K in keyof T]: ReturnType<T[K]> }> {
-    return (rng) => {
-      const out: Record<string, unknown> = {};
-      for (const key of Object.keys(shape)) {
-        out[key] = shape[key](rng);
-      }
-      return out as { [K in keyof T]: ReturnType<T[K]> };
-    };
+  object<T extends GenShape>(shape: T): Arbitrary<{ [K in keyof T]: ReturnType<T[K]> }> {
+    return createArbitrary(
+      (rng) => {
+        const out: Record<string, unknown> = {};
+        for (const key of Object.keys(shape)) {
+          out[key] = toArbitrary(shape[key]).generate(rng);
+        }
+        return out as { [K in keyof T]: ReturnType<T[K]> };
+      },
+      () => []
+    );
   }
 };
 
@@ -78,5 +92,78 @@ function assertRange(min: number, max: number, label: string): void {
 function assertLength(length: number, label: string): void {
   if (!Number.isFinite(length) || !Number.isInteger(length) || length < 0) {
     throw new RangeError(`${label} must be a non-negative integer`);
+  }
+}
+
+function toArbitrary<T>(input: Arbitrary<T> | Gen<T>): Arbitrary<T> {
+  if (typeof input === 'function') {
+    return createArbitrary(input, () => []);
+  }
+  return input;
+}
+
+function* shrinkInt(value: number, min: number, max: number): Iterable<number> {
+  if (value < min || value > max) {
+    return;
+  }
+  const target = 0 >= min && 0 <= max ? 0 : min;
+  let current = value;
+  while (current !== target) {
+    current = current > target
+      ? Math.floor((current + target) / 2)
+      : Math.ceil((current + target) / 2);
+    if (current < min || current > max) {
+      break;
+    }
+    yield current;
+  }
+}
+
+function* shrinkFloat(value: number, min: number, max: number): Iterable<number> {
+  if (value < min || value > max) {
+    return;
+  }
+  const target = 0 >= min && 0 <= max ? 0 : min;
+  let current = value;
+  for (let iteration = 0; iteration < 20; iteration += 1) {
+    const next = (current + target) / 2;
+    if (next === current) {
+      break;
+    }
+    current = next;
+    if (current < min || current > max) {
+      break;
+    }
+    yield current;
+  }
+}
+
+function* shrinkString(value: string): Iterable<string> {
+  if (value.length === 0) {
+    return;
+  }
+  yield '';
+  let length = Math.floor(value.length / 2);
+  while (length > 0) {
+    yield value.slice(0, length);
+    length = Math.floor(length / 2);
+  }
+}
+
+function* shrinkArray<T>(value: T[], shrinkItem: Shrink<T>): Iterable<T[]> {
+  if (value.length === 0) {
+    return;
+  }
+  let length = Math.floor(value.length / 2);
+  while (length > 0) {
+    yield value.slice(0, length);
+    length = Math.floor(length / 2);
+  }
+  for (let index = 0; index < value.length; index += 1) {
+    for (const shrunk of shrinkItem(value[index])) {
+      const next = value.slice();
+      next[index] = shrunk;
+      yield next;
+    }
   }
 }
