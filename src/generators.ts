@@ -188,6 +188,41 @@ export const gen = {
     );
   },
   /**
+   * Pick one of the provided arbitraries using weights.
+   */
+  weightedOneOf<T>(options: Array<{ weight: number; arbitrary: Arbitrary<T> | Gen<T> }>): Arbitrary<T> {
+    if (options.length === 0) {
+      throw new RangeError('weightedOneOf requires at least one option');
+    }
+    const normalized = options.map((option) => ({
+      weight: option.weight,
+      arbitrary: toArbitrary(option.arbitrary)
+    }));
+    const totalWeight = normalized.reduce((sum, entry) => sum + entry.weight, 0);
+    if (!Number.isFinite(totalWeight) || totalWeight <= 0) {
+      throw new RangeError('weightedOneOf requires a positive total weight');
+    }
+    if (normalized.some((entry) => !Number.isFinite(entry.weight) || entry.weight <= 0)) {
+      throw new RangeError('weightedOneOf requires positive weights');
+    }
+    return createArbitrary(
+      (randomSource) => {
+        const target = randomSource() * totalWeight;
+        const selection = normalized.reduce<{ accumulated: number; chosen?: Arbitrary<T> }>((state, entry) => {
+          if (state.chosen) {
+            return state;
+          }
+          const accumulated = state.accumulated + entry.weight;
+          const chosen = target <= accumulated ? entry.arbitrary : undefined;
+          return { accumulated, chosen };
+        }, { accumulated: 0, chosen: undefined });
+        const selected = selection.chosen ?? normalized[normalized.length - 1].arbitrary;
+        return selected.generate(randomSource);
+      },
+      (value) => shrinkOneOf(value, normalized.map((entry) => entry.arbitrary))
+    );
+  },
+  /**
    * Generate a tuple with a fixed length of heterogeneous arbitraries.
    */
   tuple<T extends Array<Arbitrary<unknown> | Gen<unknown>>>(...items: T): Arbitrary<{

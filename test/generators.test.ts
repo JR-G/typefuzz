@@ -109,4 +109,14 @@ describe('generators', () => {
     const value = generator.generate(randomSource);
     expect(value % 2).toBe(0);
   });
+
+  it('supports weightedOneOf', () => {
+    const randomSource = createSeededRandomSource(7);
+    const generator = gen.weightedOneOf([
+      { weight: 1, arbitrary: gen.constant('a') },
+      { weight: 3, arbitrary: gen.constant('b') }
+    ]);
+    const value = generator.generate(randomSource);
+    expect(['a', 'b']).toContain(value);
+  });
 });
