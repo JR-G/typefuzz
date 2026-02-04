@@ -29,8 +29,8 @@
   "types": "./dist/index.d.ts",
   "files": ["dist", "README.md"],
   "scripts": {
-    "build": "bunx tsc -p tsconfig.json",
-    "dev": "bunx tsc -p tsconfig.json --watch",
+    "build": "bunx tsc -p tsconfig.build.json",
+    "dev": "bunx tsc -p tsconfig.build.json --watch",
     "clean": "rm -rf dist",
     "lint": "bunx eslint .",
     "test": "bunx vitest run"
