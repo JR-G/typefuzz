@@ -95,6 +95,15 @@ const arb = zodArbitrary(schema);
 - `gen.map(item, mapper, unmap?)` map values
 - `gen.filter(item, predicate, maxAttempts?)` filter values
 
+## Core API
+
+- `fuzz.assert(arbitrary, predicate, config?)` run a property and throw on failure
+- `fuzz.property(arbitrary, predicate, config?)` run and return a result
+- `fuzz.replay(arbitrary, predicate, { seed, runs })` replay a property
+- `fuzz.assertReplay(arbitrary, predicate, { seed, runs })` replay and throw on failure
+- `fuzz.serializeFailure(failure)` JSON-friendly failure payload
+- `fuzz.formatSerializedFailure(payload)` human-readable failure string
+
 ## Roadmap (MVP)
 
 - `fuzz.it` wrapper for Vitest
