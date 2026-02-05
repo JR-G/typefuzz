@@ -257,7 +257,7 @@ export const gen = {
         });
         return parts.join('-');
       },
-      (value) => shrinkString(value)
+      (value) => shrinkUuid(value)
     );
   },
   /**
@@ -277,7 +277,7 @@ export const gen = {
         const domain = Array.from({ length: 6 }, () => domainChars[Math.floor(randomSource() * domainChars.length)]).join('');
         return `${local}@${domain}.com`;
       },
-      (value) => shrinkString(value)
+      (value) => shrinkEmail(value)
     );
   },
   /**
@@ -551,6 +551,53 @@ function* shrinkString(value: string): Iterable<string> {
   while (length > 0) {
     yield value.slice(0, length);
     length = Math.floor(length / 2);
+  }
+}
+
+function* shrinkUuid(value: string): Iterable<string> {
+  const segments = value.split('-');
+  if (segments.length !== 5) {
+    return;
+  }
+  for (let i = 0; i < segments.length; i++) {
+    const segment = segments[i];
+    const zeroed = i === 2
+      ? '4' + '0'.repeat(segment.length - 1)
+      : i === 3
+        ? '8' + '0'.repeat(segment.length - 1)
+        : '0'.repeat(segment.length);
+    if (segment !== zeroed) {
+      const shrunk = segments.slice();
+      shrunk[i] = zeroed;
+      yield shrunk.join('-');
+    }
+  }
+}
+
+function* shrinkEmail(value: string): Iterable<string> {
+  const atIndex = value.indexOf('@');
+  if (atIndex === -1) {
+    return;
+  }
+  const local = value.slice(0, atIndex);
+  const domainPart = value.slice(atIndex + 1);
+  const dotIndex = domainPart.lastIndexOf('.');
+  if (dotIndex === -1) {
+    return;
+  }
+  const domain = domainPart.slice(0, dotIndex);
+  const tld = domainPart.slice(dotIndex + 1);
+  if (local.length > 1) {
+    yield `${local.slice(0, Math.ceil(local.length / 2))}@${domain}.${tld}`;
+  }
+  if (domain.length > 1) {
+    yield `${local}@${domain.slice(0, Math.ceil(domain.length / 2))}.${tld}`;
+  }
+  if (local !== 'a') {
+    yield `a@${domain}.${tld}`;
+  }
+  if (domain !== 'a') {
+    yield `${local}@a.${tld}`;
   }
 }
 

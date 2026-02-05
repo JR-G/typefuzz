@@ -15,10 +15,9 @@ export interface PropertyFailure<T> {
   error?: unknown;
 }
 
-export interface PropertyResult<T> {
-  ok: boolean;
-  failure?: PropertyFailure<T>;
-}
+export type PropertyResult<T> =
+  | { ok: true }
+  | { ok: false; failure: PropertyFailure<T> };
 
 /**
  * JSON-serializable representation of a property failure.
@@ -146,7 +145,7 @@ export function runReplay<T>(arbitraryInput: Arbitrary<T> | Gen<T>, predicate: (
  */
 export function fuzzAssert<T>(arbitraryInput: Arbitrary<T> | Gen<T>, predicate: (value: T) => boolean | void, config: PropertyConfig = {}): void {
   const result = runProperty(arbitraryInput, predicate, config);
-  if (result.ok || !result.failure) {
+  if (result.ok) {
     return;
   }
   throw createFailureError(result.failure);
