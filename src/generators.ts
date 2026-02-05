@@ -735,8 +735,7 @@ function* shrinkDate(value: Date, min: Date, max: Date): Iterable<Date> {
   }
   const target = 0 >= minTime && 0 <= maxTime ? 0 : minTime;
   let current = valueTime;
-  const steps = Array.from({ length: 32 }, (_, index) => index);
-  for (const _ of steps) {
+  for (let step = 0; step < 32; step++) {
     const next = Math.floor((current + target) / 2);
     if (next === current) {
       return;
