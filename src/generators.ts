@@ -1,4 +1,5 @@
 import { createArbitrary, type Arbitrary, type Gen, type Shrink } from './core.js';
+import { randomInt, replaceAt, shrinkLengths, shrinkString } from './shrink-utils.js';
 
 type GenShape = Record<string, Arbitrary<unknown> | Gen<unknown>>;
 
@@ -542,18 +543,6 @@ function* shrinkFloat(value: number, min: number, max: number): Iterable<number>
   }
 }
 
-function* shrinkString(value: string): Iterable<string> {
-  if (value.length === 0) {
-    return;
-  }
-  yield '';
-  let length = Math.floor(value.length / 2);
-  while (length > 0) {
-    yield value.slice(0, length);
-    length = Math.floor(length / 2);
-  }
-}
-
 function* shrinkUuid(value: string): Iterable<string> {
   const segments = value.split('-');
   if (segments.length !== 5) {
@@ -610,7 +599,7 @@ function* shrinkArray<T>(value: T[], shrinkItem: Shrink<T>): Iterable<T[]> {
     yield value.slice(0, prefixLength);
   }
   const shrinkCandidates = value.flatMap((item, index) =>
-    collectIterable(shrinkItem(item)).map((shrunk) => replaceAt(value, index, shrunk))
+    Array.from(shrinkItem(item)).map((shrunk) => replaceAt(value, index, shrunk))
   );
   yield* shrinkCandidates;
 }
@@ -622,20 +611,20 @@ function* shrinkObject<T extends GenShape>(
   const shrinkCandidates = Object.keys(shape).flatMap((key) => {
     const typedKey = key as keyof T;
     const arbitrary = toArbitrary(shape[typedKey]);
-    return collectIterable(arbitrary.shrink(value[typedKey]))
+    return Array.from(arbitrary.shrink(value[typedKey]))
       .map((shrunk) => ({ ...value, [typedKey]: shrunk as InferValue<T[keyof T]> }));
   });
   yield* shrinkCandidates;
 }
 
 function* shrinkOneOf<T>(value: T, arbitraries: Array<Arbitrary<T>>): Iterable<T> {
-  const shrinkCandidates = arbitraries.flatMap((arbitrary) => collectIterable(arbitrary.shrink(value)));
+  const shrinkCandidates = arbitraries.flatMap((arbitrary) => Array.from(arbitrary.shrink(value)));
   yield* shrinkCandidates;
 }
 
 function* shrinkTuple<T extends unknown[]>(value: T, arbitraries: Array<Arbitrary<unknown>>): Iterable<T> {
   const shrinkCandidates = value.flatMap((current, index) =>
-    collectIterable(arbitraries[index].shrink(current))
+    Array.from(arbitraries[index].shrink(current))
       .map((shrunk) => replaceAt(value, index, shrunk) as T)
   );
   yield* shrinkCandidates;
@@ -649,7 +638,7 @@ function* shrinkRecord<T>(value: Record<string, T>, arbitrary: Arbitrary<T>): It
   const prefixLengths = shrinkLengths(entries.length);
   const prefixCandidates = prefixLengths.map((prefixLength) => Object.fromEntries(entries.slice(0, prefixLength)));
   const valueCandidates = entries.flatMap(([key, entryValue]) =>
-    collectIterable(arbitrary.shrink(entryValue)).map((shrunk) => ({ ...value, [key]: shrunk }))
+    Array.from(arbitrary.shrink(entryValue)).map((shrunk) => ({ ...value, [key]: shrunk }))
   );
   yield* prefixCandidates;
   yield* valueCandidates;
@@ -669,10 +658,10 @@ function* shrinkDictionary<V>(
     Object.fromEntries(entries.slice(0, prefixLength)) as Record<string, V>
   );
   const valueCandidates = entries.flatMap(([key, entryValue]) =>
-    collectIterable(valueGenerator.shrink(entryValue)).map((shrunk) => ({ ...value, [key]: shrunk }))
+    Array.from(valueGenerator.shrink(entryValue)).map((shrunk) => ({ ...value, [key]: shrunk }))
   );
   const keyCandidates = entries.flatMap(([key, entryValue]) =>
-    collectIterable(keyGenerator.shrink(key)).map((shrunkKey) => {
+    Array.from(keyGenerator.shrink(key)).map((shrunkKey) => {
       const record = { ...value } as Record<string, V>;
       delete record[key];
       record[shrunkKey] = entryValue;
@@ -692,7 +681,7 @@ function* shrinkSet<T>(value: Set<T>, valueGenerator: Arbitrary<T>): Iterable<Se
   const prefixLengths = shrinkLengths(entries.length);
   const prefixCandidates = prefixLengths.map((prefixLength) => new Set(entries.slice(0, prefixLength)));
   const valueCandidates = entries.flatMap((entryValue, index) =>
-    collectIterable(valueGenerator.shrink(entryValue)).map((shrunk) => {
+    Array.from(valueGenerator.shrink(entryValue)).map((shrunk) => {
       const next = entries.slice();
       next[index] = shrunk;
       return new Set(next);
@@ -709,7 +698,7 @@ function* shrinkUniqueArray<T>(value: T[], valueGenerator: Arbitrary<T>): Iterab
   const prefixLengths = shrinkLengths(value.length);
   const prefixCandidates = prefixLengths.map((prefixLength) => value.slice(0, prefixLength));
   const valueCandidates = value.flatMap((entryValue, index) =>
-    collectIterable(valueGenerator.shrink(entryValue))
+    Array.from(valueGenerator.shrink(entryValue))
       .filter((shrunk) => !value.includes(shrunk))
       .map((shrunk) => replaceAt(value, index, shrunk))
   );
@@ -740,10 +729,6 @@ function* shrinkDate(value: Date, min: Date, max: Date): Iterable<Date> {
   }
 }
 
-function randomInt(randomSource: () => number, min: number, max: number): number {
-  return Math.floor(randomSource() * (max - min + 1)) + min;
-}
-
 function randomKey(randomSource: () => number, index: number): string {
   return `key_${index}_${Math.floor(randomSource() * 1_000_000)}`;
 }
@@ -755,11 +740,14 @@ function buildUniqueKeys(
 ): string[] {
   const attemptsPerKey = 20;
   const totalAttempts = desiredCount * attemptsPerKey;
-  const attemptList = Array.from({ length: totalAttempts }, () => keyGenerator.generate(randomSource));
-  return attemptList.reduce<string[]>((state, key) => {
-    const exists = state.includes(key);
-    return exists || state.length >= desiredCount ? state : state.concat([key]);
-  }, []);
+  const result: string[] = [];
+  for (let i = 0; i < totalAttempts && result.length < desiredCount; i++) {
+    const key = keyGenerator.generate(randomSource);
+    if (!result.includes(key)) {
+      result.push(key);
+    }
+  }
+  return result;
 }
 
 function buildUniqueValues<T>(
@@ -769,11 +757,14 @@ function buildUniqueValues<T>(
 ): T[] {
   const attemptsPerValue = 20;
   const totalAttempts = desiredCount * attemptsPerValue;
-  const attemptList = Array.from({ length: totalAttempts }, () => valueGenerator.generate(randomSource));
-  return attemptList.reduce<T[]>((state, value) => {
-    const exists = state.includes(value);
-    return exists || state.length >= desiredCount ? state : state.concat([value]);
-  }, []);
+  const result: T[] = [];
+  for (let i = 0; i < totalAttempts && result.length < desiredCount; i++) {
+    const value = valueGenerator.generate(randomSource);
+    if (!result.includes(value)) {
+      result.push(value);
+    }
+  }
+  return result;
 }
 
 function* shrinkMapped<T, U>(
@@ -805,33 +796,8 @@ function generateFilteredValue<T>(arbitrary: Arbitrary<T>, predicate: (value: T)
 }
 
 function* shrinkFiltered<T>(value: T, arbitrary: Arbitrary<T>, predicate: (value: T) => boolean): Iterable<T> {
-  const shrinkCandidates = collectIterable(arbitrary.shrink(value))
+  const shrinkCandidates = Array.from(arbitrary.shrink(value))
     .filter(predicate);
   yield* shrinkCandidates;
 }
 
-function collectIterable<T>(iterable: Iterable<T>): T[] {
-  return Array.from(iterable);
-}
-
-function replaceAt<T>(items: T[], index: number, value: T): T[] {
-  const next = items.slice();
-  next[index] = value;
-  return next;
-}
-
-function shrinkLengths(length: number): number[] {
-  if (length === 0) {
-    return [];
-  }
-  const lengths: number[] = [];
-  let currentLength = Math.floor(length / 2);
-  while (currentLength >= 0) {
-    lengths.push(currentLength);
-    if (currentLength === 0) {
-      break;
-    }
-    currentLength = Math.floor(currentLength / 2);
-  }
-  return lengths;
-}

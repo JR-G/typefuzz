@@ -100,27 +100,26 @@ export function runProperty<T>(arbitraryInput: Arbitrary<T> | Gen<T>, predicate:
   const { runs, seed, randomSource } = createRunState(config);
   const maxShrinks = normalizeMaxShrinks(config.maxShrinks);
   const arbitrary = normalizeArbitrary(arbitraryInput);
-  const iterations = Array.from({ length: runs }, (_, index) => index + 1);
-  const failure = iterations.reduce<PropertyFailure<T> | undefined>((state, iteration) => {
-    if (state) {
-      return state;
-    }
+  for (let iteration = 1; iteration <= runs; iteration++) {
     const value = arbitrary.generate(randomSource);
     const result = tryFailure(predicate, value);
     if (!result.failed) {
-      return state;
+      continue;
     }
     const shrinkResult = shrinkCounterexample(arbitrary, predicate, value, maxShrinks);
     return {
-      seed,
-      runs,
-      iterations: iteration,
-      shrinks: shrinkResult.shrinks,
-      counterexample: shrinkResult.counterexample,
-      error: shrinkResult.error ?? result.error
+      ok: false as const,
+      failure: {
+        seed,
+        runs,
+        iterations: iteration,
+        shrinks: shrinkResult.shrinks,
+        counterexample: shrinkResult.counterexample,
+        error: shrinkResult.error ?? result.error
+      }
     };
-  }, undefined);
-  return failure ? { ok: false, failure } : { ok: true };
+  }
+  return { ok: true };
 }
 
 /**
@@ -269,22 +268,22 @@ function shrinkUntilFixedPoint<T>(
   initial: T,
   maxShrinks: number
 ): { current: T; shrinks: number; lastError?: unknown } {
-  const initialState = { current: initial, shrinks: 0, lastError: undefined as unknown };
-  const iterations = Array.from({ length: maxShrinks }, (_, index) => index);
-  return iterations.reduce((state) => {
-    if (state.shrinks >= maxShrinks) {
-      return state;
+  let current = initial;
+  let totalShrinks = 0;
+  let lastError: unknown;
+  for (let round = 0; round < maxShrinks; round++) {
+    if (totalShrinks >= maxShrinks) {
+      break;
     }
-    const best = selectBestCandidate(arbitrary, predicate, state.current, maxShrinks - state.shrinks);
+    const best = selectBestCandidate(arbitrary, predicate, current, maxShrinks - totalShrinks);
     if (!best.next) {
-      return state;
+      break;
     }
-    return {
-      current: best.next,
-      shrinks: state.shrinks + best.shrinks,
-      lastError: best.lastError ?? state.lastError
-    };
-  }, initialState);
+    current = best.next;
+    totalShrinks += best.shrinks;
+    lastError = best.lastError ?? lastError;
+  }
+  return { current, shrinks: totalShrinks, lastError };
 }
 
 function selectBestCandidate<T>(
@@ -294,30 +293,27 @@ function selectBestCandidate<T>(
   remainingShrinks: number
 ): { next?: T; shrinks: number; lastError?: unknown } {
   const candidates = Array.from(arbitrary.shrink(current));
-  const evaluated = candidates.reduce(
-    (state, candidate) => {
-      if (state.shrinks >= remainingShrinks) {
-        return state;
-      }
-      const failure = tryFailure(predicate, candidate);
-      if (!failure.failed) {
-        return { ...state, shrinks: state.shrinks + 1 };
-      }
-      const candidateScore = scoreValue(candidate);
-      const shouldReplace = state.bestScore === undefined || candidateScore < state.bestScore;
-      const nextBest = shouldReplace ? candidate : state.best;
-      const nextScore = shouldReplace ? candidateScore : state.bestScore;
-      const nextError = failure.error ?? state.lastError;
-      return {
-        best: nextBest,
-        bestScore: nextScore,
-        shrinks: state.shrinks + 1,
-        lastError: nextError
-      };
-    },
-    { best: undefined as T | undefined, bestScore: undefined as number | undefined, shrinks: 0, lastError: undefined as unknown }
-  );
-  return { next: evaluated.best, shrinks: evaluated.shrinks, lastError: evaluated.lastError };
+  let best: T | undefined;
+  let bestScore: number | undefined;
+  let shrinks = 0;
+  let lastError: unknown;
+  for (const candidate of candidates) {
+    if (shrinks >= remainingShrinks) {
+      break;
+    }
+    const failure = tryFailure(predicate, candidate);
+    shrinks++;
+    if (!failure.failed) {
+      continue;
+    }
+    const candidateScore = scoreValue(candidate);
+    if (bestScore === undefined || candidateScore < bestScore) {
+      best = candidate;
+      bestScore = candidateScore;
+      lastError = failure.error ?? lastError;
+    }
+  }
+  return { next: best, shrinks, lastError };
 }
 
 function scoreValue(value: unknown): number {

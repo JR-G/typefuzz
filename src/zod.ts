@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { createArbitrary, type Arbitrary, type Gen } from './core.js';
 import { gen } from './generators.js';
+import { randomInt, randomString, replaceAt, shrinkLengths, shrinkString } from './shrink-utils.js';
 
 const DEFAULT_STRING_LENGTH = 8;
 const DEFAULT_ARRAY_LENGTH = 5;
@@ -232,27 +233,6 @@ function arrayBounds(schema: z.ZodArray<z.ZodTypeAny>): { min?: number; max?: nu
   }, {});
 }
 
-function randomInt(randomSource: () => number, min: number, max: number): number {
-  return Math.floor(randomSource() * (max - min + 1)) + min;
-}
-
-function randomString(randomSource: () => number, length: number): string {
-  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-  return Array.from({ length }, () => chars[Math.floor(randomSource() * chars.length)]).join('');
-}
-
-function* shrinkString(value: string): Iterable<string> {
-  if (value.length === 0) {
-    return;
-  }
-  yield '';
-  let length = Math.floor(value.length / 2);
-  while (length > 0) {
-    yield value.slice(0, length);
-    length = Math.floor(length / 2);
-  }
-}
-
 function* shrinkArray(value: unknown[], itemArbitrary: Arbitrary<unknown>): Iterable<unknown[]> {
   if (value.length === 0) {
     return;
@@ -265,26 +245,4 @@ function* shrinkArray(value: unknown[], itemArbitrary: Arbitrary<unknown>): Iter
     Array.from(itemArbitrary.shrink(item)).map((shrunk) => replaceAt(value, index, shrunk))
   );
   yield* shrinkCandidates;
-}
-
-function replaceAt<T>(items: T[], index: number, value: T): T[] {
-  const next = items.slice();
-  next[index] = value;
-  return next;
-}
-
-function shrinkLengths(length: number): number[] {
-  if (length === 0) {
-    return [];
-  }
-  const lengths: number[] = [];
-  let currentLength = Math.floor(length / 2);
-  while (currentLength >= 0) {
-    lengths.push(currentLength);
-    if (currentLength === 0) {
-      break;
-    }
-    currentLength = Math.floor(currentLength / 2);
-  }
-  return lengths;
 }
