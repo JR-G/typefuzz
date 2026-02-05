@@ -66,6 +66,9 @@ export interface RunState {
  */
 export function createSeededRandomSource(seed: Seed): RandomSource {
   let state = seed | 0;
+  if (state === 0) {
+    state = 0x9e3779b9;
+  }
   return () => {
     state ^= state << 13;
     state ^= state >>> 17;

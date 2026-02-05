@@ -16,6 +16,15 @@ describe('core', () => {
     expect(state.runs).toBe(5);
   });
 
+  it('handles seed=0 without degenerating', () => {
+    const randomSource = createSeededRandomSource(0);
+    const values = [randomSource(), randomSource(), randomSource()];
+    const allZero = values.every((v) => v === 0);
+    expect(allZero).toBe(false);
+    const unique = new Set(values);
+    expect(unique.size).toBeGreaterThan(1);
+  });
+
   it('rejects invalid run counts', () => {
     expect(() => createRunState({ runs: 0 })).toThrowError(RangeError);
     expect(() => createRunState({ runs: -1 })).toThrowError(RangeError);

@@ -288,7 +288,7 @@ export const gen = {
    * const dates = gen.date(new Date('2020-01-01'), new Date('2020-12-31'));
    * ```
    */
-  date(min = new Date(0), max = new Date()): Arbitrary<Date> {
+  date(min: Date = new Date(0), max: Date = new Date('2099-12-31T23:59:59.999Z')): Arbitrary<Date> {
     const minTime = min.getTime();
     const maxTime = max.getTime();
     if (!Number.isFinite(minTime) || !Number.isFinite(maxTime)) {
@@ -748,18 +748,11 @@ function* shrinkMapped<T, U>(
 }
 
 function generateFilteredValue<T>(arbitrary: Arbitrary<T>, predicate: (value: T) => boolean, randomSource: () => number, maxAttempts: number): T {
-  const attempts = Array.from({ length: maxAttempts }, () => arbitrary.generate(randomSource));
-  const result = attempts.reduce<{ found: boolean; value: T | undefined }>((state, candidate) => {
-    if (state.found) {
-      return state;
-    }
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const candidate = arbitrary.generate(randomSource);
     if (predicate(candidate)) {
-      return { found: true, value: candidate };
+      return candidate;
     }
-    return state;
-  }, { found: false, value: undefined });
-  if (result.found) {
-    return result.value as T;
   }
   throw new RangeError('filter predicate rejected all generated values');
 }
