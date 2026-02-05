@@ -23,21 +23,19 @@ describe('property runner', () => {
   });
 
   it('replays with a specific seed', () => {
-    const expected = valueForSeed(11);
-    let otherSeed = 12;
-    while (otherSeed < 50 && valueForSeed(otherSeed) === expected) {
-      otherSeed += 1;
-    }
     const arbitrary = {
       generate: (localRng: () => number) => Math.floor(localRng() * 1000),
-      shrink: () => []
+      shrink: () => [] as number[]
     };
-    const replayResult = runReplay(arbitrary, (value) => value === expected, { seed: 11, runs: 1 });
-    expect(replayResult.ok).toBe(true);
+    const firstRun = runProperty(arbitrary, () => false, { seed: 11, runs: 1 });
+    expect(firstRun.ok).toBe(false);
+    if (!firstRun.ok) {
+      const captured = firstRun.failure.counterexample;
+      const replayResult = runReplay(arbitrary, (value) => value === captured, { seed: 11, runs: 1 });
+      expect(replayResult.ok).toBe(true);
 
-    if (otherSeed < 50) {
-      const nonReplayResult = runProperty(arbitrary, (value) => value === expected, { seed: otherSeed, runs: 1 });
-      expect(nonReplayResult.ok).toBe(false);
+      const differentSeed = runProperty(arbitrary, (value) => value === captured, { seed: 999, runs: 1 });
+      expect(differentSeed.ok).toBe(false);
     }
   });
 

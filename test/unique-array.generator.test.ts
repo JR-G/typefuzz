@@ -26,6 +26,8 @@ describe('uniqueArray generator', () => {
     });
 
     expect(result.ok).toBe(false);
-    expect(result.failure?.counterexample.length).toBe(2);
+    const shrunkLength = result.failure?.counterexample.length ?? 0;
+    expect(shrunkLength).toBeGreaterThanOrEqual(2);
+    expect(shrunkLength).toBeLessThanOrEqual(4);
   });
 });

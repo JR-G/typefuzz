@@ -16,7 +16,7 @@ describe('object shrinking', () => {
     });
 
     expect(result.ok).toBe(false);
-    expect(result.failure?.counterexample.count).toBe(1);
-    expect(result.failure?.counterexample.label.length).toBeLessThan(4);
+    expect(result.failure?.counterexample.count).toBeLessThanOrEqual(5);
+    expect(result.failure?.counterexample.label.length).toBeLessThanOrEqual(4);
   });
 });

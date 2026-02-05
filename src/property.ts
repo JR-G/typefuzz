@@ -1,5 +1,6 @@
 import {
   createRunState,
+  forkRandomSource,
   normalizeArbitrary,
   type Arbitrary,
   type Gen,
@@ -101,7 +102,8 @@ export function runProperty<T>(arbitraryInput: Arbitrary<T> | Gen<T>, predicate:
   const maxShrinks = normalizeMaxShrinks(config.maxShrinks);
   const arbitrary = normalizeArbitrary(arbitraryInput);
   for (let iteration = 1; iteration <= runs; iteration++) {
-    const value = arbitrary.generate(randomSource);
+    const iterationSource = forkRandomSource(randomSource);
+    const value = arbitrary.generate(iterationSource);
     const result = tryFailure(predicate, value);
     if (!result.failed) {
       continue;
@@ -179,7 +181,8 @@ export async function runPropertyAsync<T>(
   const maxShrinks = normalizeMaxShrinks(config.maxShrinks);
   const arbitrary = normalizeArbitrary(arbitraryInput);
   for (let iteration = 1; iteration <= runs; iteration++) {
-    const value = arbitrary.generate(randomSource);
+    const iterationSource = forkRandomSource(randomSource);
+    const value = arbitrary.generate(iterationSource);
     const result = await tryFailureAsync(predicate, value);
     if (!result.failed) {
       continue;

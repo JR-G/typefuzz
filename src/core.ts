@@ -78,6 +78,15 @@ export function createSeededRandomSource(seed: Seed): RandomSource {
 }
 
 /**
+ * Derive an independent RNG from the current source. Uses the next value
+ * as a seed so the fork is deterministic but isolated.
+ */
+export function forkRandomSource(parent: RandomSource): RandomSource {
+  const childSeed = Math.floor(parent() * 0x100000000);
+  return createSeededRandomSource(childSeed);
+}
+
+/**
  * Normalize user config into a run state with a seeded RNG.
  */
 export function createRunState(config: RunConfig = {}): RunState {
