@@ -308,18 +308,38 @@ export const gen = {
     );
   },
   /**
-   * Fixed-length array generator.
+   * Array generator. Pass a number for fixed length, or an options object
+   * with minLength/maxLength for variable-length arrays.
    *
    * @example
    * ```ts
-   * const items = gen.array(gen.int(1, 3), 5);
+   * gen.array(gen.int(1, 3), 5);
+   * gen.array(gen.int(1, 3), { minLength: 1, maxLength: 10 });
    * ```
    */
-  array<T>(item: Arbitrary<T> | Gen<T>, length = 5): Arbitrary<T[]> {
-    assertLength(length, 'array length');
+  array<T>(item: Arbitrary<T> | Gen<T>, lengthOrOptions: number | { minLength?: number; maxLength?: number } = 5): Arbitrary<T[]> {
     const arbitrary = toArbitrary(item);
+    if (typeof lengthOrOptions === 'number') {
+      assertLength(lengthOrOptions, 'array length');
+      const length = lengthOrOptions;
+      return createArbitrary(
+        (randomSource) => Array.from({ length }, () => arbitrary.generate(randomSource)),
+        (value) => shrinkArray(value, arbitrary.shrink)
+      );
+    }
+    const minLength = lengthOrOptions.minLength ?? 0;
+    const maxLength = lengthOrOptions.maxLength ?? Math.max(minLength, 10);
+    if (!Number.isInteger(minLength) || minLength < 0) {
+      throw new RangeError('minLength must be a non-negative integer');
+    }
+    if (!Number.isInteger(maxLength) || maxLength < minLength) {
+      throw new RangeError('maxLength must be an integer >= minLength');
+    }
     return createArbitrary(
-      (randomSource) => Array.from({ length }, () => arbitrary.generate(randomSource)),
+      (randomSource) => {
+        const length = randomInt(randomSource, minLength, maxLength);
+        return Array.from({ length }, () => arbitrary.generate(randomSource));
+      },
       (value) => shrinkArray(value, arbitrary.shrink)
     );
   },
