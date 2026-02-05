@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { gen } from '../src/generators.js';
 import { fuzz } from '../src/index.js';
 import { createSeededRandomSource } from '../src/core.js';
-import { fuzzAssert, formatSerializedFailure, runProperty, runReplay, serializeFailure } from '../src/property.js';
+import { fuzzAssert, fuzzAssertAsync, formatSerializedFailure, runProperty, runPropertyAsync, runReplay, serializeFailure } from '../src/property.js';
 
 describe('property runner', () => {
   it('shrinks to minimal counterexample', () => {
@@ -70,6 +70,30 @@ describe('property runner', () => {
     const typedError = error as Error;
     expect(typedError.message).toContain('replay:');
     expect(typedError.message).toContain('seed: 55');
+  });
+
+  it('runs async predicates', async () => {
+    const result = await runPropertyAsync(gen.int(1, 100), async (value) => {
+      await Promise.resolve();
+      return value > 0;
+    }, { seed: 42, runs: 50 });
+    expect(result.ok).toBe(true);
+  });
+
+  it('shrinks async counterexamples', async () => {
+    const result = await runPropertyAsync(gen.int(1, 100), async () => {
+      await Promise.resolve();
+      return false;
+    }, { seed: 42, runs: 1, maxShrinks: 50 });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.failure.counterexample).toBe(1);
+    }
+  });
+
+  it('fuzzAssertAsync throws on failure', async () => {
+    await expect(fuzzAssertAsync(gen.int(1, 10), async () => false, { seed: 77, runs: 1, maxShrinks: 10 }))
+      .rejects.toThrowError(/seed: 77/);
   });
 
   it('rejects invalid maxShrinks', () => {

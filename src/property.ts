@@ -163,6 +163,81 @@ export function fuzzReplay<T>(arbitraryInput: Arbitrary<T> | Gen<T>, predicate: 
   fuzzAssert(arbitraryInput, predicate, config);
 }
 
+/**
+ * Execute an async property with shrinking and return a structured result.
+ *
+ * @example
+ * ```ts
+ * const result = await runPropertyAsync(gen.int(1, 10), async (value) => value > 0);
+ * ```
+ */
+export async function runPropertyAsync<T>(
+  arbitraryInput: Arbitrary<T> | Gen<T>,
+  predicate: (value: T) => boolean | void | Promise<boolean | void>,
+  config: PropertyConfig = {}
+): Promise<PropertyResult<T>> {
+  const { runs, seed, randomSource } = createRunState(config);
+  const maxShrinks = normalizeMaxShrinks(config.maxShrinks);
+  const arbitrary = normalizeArbitrary(arbitraryInput);
+  for (let iteration = 1; iteration <= runs; iteration++) {
+    const value = arbitrary.generate(randomSource);
+    const result = await tryFailureAsync(predicate, value);
+    if (!result.failed) {
+      continue;
+    }
+    const shrinkResult = await shrinkCounterexampleAsync(arbitrary, predicate, value, maxShrinks);
+    return {
+      ok: false,
+      failure: {
+        seed,
+        runs,
+        iterations: iteration,
+        shrinks: shrinkResult.shrinks,
+        counterexample: shrinkResult.counterexample,
+        error: shrinkResult.error ?? result.error
+      }
+    };
+  }
+  return { ok: true };
+}
+
+/**
+ * Replay an async property with a specific seed.
+ */
+export async function runReplayAsync<T>(
+  arbitraryInput: Arbitrary<T> | Gen<T>,
+  predicate: (value: T) => boolean | void | Promise<boolean | void>,
+  config: ReplayConfig
+): Promise<PropertyResult<T>> {
+  return runPropertyAsync(arbitraryInput, predicate, { ...config, seed: config.seed });
+}
+
+/**
+ * Run an async property and throw an Error on failure.
+ */
+export async function fuzzAssertAsync<T>(
+  arbitraryInput: Arbitrary<T> | Gen<T>,
+  predicate: (value: T) => boolean | void | Promise<boolean | void>,
+  config: PropertyConfig = {}
+): Promise<void> {
+  const result = await runPropertyAsync(arbitraryInput, predicate, config);
+  if (result.ok) {
+    return;
+  }
+  throw createFailureError(result.failure);
+}
+
+/**
+ * Replay an async property with a specific seed and throw on failure.
+ */
+export async function fuzzReplayAsync<T>(
+  arbitraryInput: Arbitrary<T> | Gen<T>,
+  predicate: (value: T) => boolean | void | Promise<boolean | void>,
+  config: ReplayConfig
+): Promise<void> {
+  await fuzzAssertAsync(arbitraryInput, predicate, config);
+}
+
 function normalizeMaxShrinks(maxShrinks: number | undefined): number {
   const resolved = maxShrinks ?? 1000;
   if (!Number.isFinite(resolved) || resolved <= 0 || !Number.isInteger(resolved)) {
@@ -275,6 +350,63 @@ function formatValue(value: unknown): string {
   } catch {
     return String(value);
   }
+}
+
+async function tryFailureAsync<T>(
+  predicate: (value: T) => boolean | void | Promise<boolean | void>,
+  value: T
+): Promise<{ failed: boolean; error?: unknown }> {
+  try {
+    const result = await predicate(value);
+    if (result === false) {
+      return { failed: true };
+    }
+    return { failed: false };
+  } catch (error) {
+    return { failed: true, error };
+  }
+}
+
+async function shrinkCounterexampleAsync<T>(
+  arbitrary: Arbitrary<T>,
+  predicate: (value: T) => boolean | void | Promise<boolean | void>,
+  value: T,
+  maxShrinks: number
+): Promise<{ counterexample: T; shrinks: number; error?: unknown }> {
+  let current = value;
+  let totalShrinks = 0;
+  let lastError: unknown;
+  for (let round = 0; round < maxShrinks; round++) {
+    if (totalShrinks >= maxShrinks) {
+      break;
+    }
+    const candidates = Array.from(arbitrary.shrink(current));
+    let bestCandidate: T | undefined;
+    let bestScore: number | undefined;
+    let roundShrinks = 0;
+    for (const candidate of candidates) {
+      if (totalShrinks + roundShrinks >= maxShrinks) {
+        break;
+      }
+      const failure = await tryFailureAsync(predicate, candidate);
+      roundShrinks++;
+      if (!failure.failed) {
+        continue;
+      }
+      const candidateScore = scoreValue(candidate);
+      if (bestScore === undefined || candidateScore < bestScore) {
+        bestCandidate = candidate;
+        bestScore = candidateScore;
+        lastError = failure.error ?? lastError;
+      }
+    }
+    totalShrinks += roundShrinks;
+    if (bestCandidate === undefined) {
+      break;
+    }
+    current = bestCandidate;
+  }
+  return { counterexample: current, shrinks: totalShrinks, error: lastError };
 }
 
 function createFailureError<T>(failure: PropertyFailure<T>): Error {
