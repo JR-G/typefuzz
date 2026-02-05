@@ -70,8 +70,37 @@ function buildArbitrary(schema: z.ZodTypeAny): Arbitrary<unknown> {
   if (schema instanceof z.ZodUnion) {
     return unionArbitrary(schema) as Arbitrary<unknown>;
   }
+  if (schema instanceof z.ZodDate) {
+    return gen.date() as Arbitrary<unknown>;
+  }
+  if (schema instanceof z.ZodUndefined) {
+    return literalArbitrary(undefined) as Arbitrary<unknown>;
+  }
+  if (schema instanceof z.ZodVoid) {
+    return literalArbitrary(undefined) as Arbitrary<unknown>;
+  }
+  if (schema instanceof z.ZodAny || schema instanceof z.ZodUnknown) {
+    return gen.oneOf(
+      gen.int() as Arbitrary<unknown>,
+      gen.string() as Arbitrary<unknown>,
+      gen.bool() as Arbitrary<unknown>,
+      literalArbitrary(null) as Arbitrary<unknown>
+    );
+  }
+  if (schema instanceof z.ZodDefault) {
+    return buildArbitrary(schema._def.innerType);
+  }
+  if (schema instanceof z.ZodLazy) {
+    return createArbitrary(
+      (randomSource) => buildArbitrary(schema._def.getter()).generate(randomSource),
+      (value) => buildArbitrary(schema._def.getter()).shrink(value)
+    ) as Arbitrary<unknown>;
+  }
+  if (schema instanceof z.ZodEffects) {
+    return buildArbitrary(schema._def.schema);
+  }
 
-  throw new TypeError(`Unsupported Zod schema type: ${schema._def.typeName}`);
+  throw new TypeError(`Unsupported Zod schema type: ${schema._def.typeName} (typefuzz targets Zod 3.x)`);
 }
 
 function stringArbitrary(schema: z.ZodString): Arbitrary<string> {
