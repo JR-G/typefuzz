@@ -154,4 +154,89 @@ describe('generators', () => {
     expect(() => gen.filter(gen.int(1, 10), () => true, 0)).toThrowError(RangeError);
     expect(() => gen.filter(gen.int(1, 10), () => true, -1)).toThrowError(RangeError);
   });
+
+  it('variable-length array respects minLength and maxLength', () => {
+    const randomSource = createSeededRandomSource(42);
+    const generator = gen.array(gen.int(1, 5), { minLength: 2, maxLength: 6 });
+    Array.from({ length: 50 }).forEach(() => {
+      const value = generator.generate(randomSource);
+      expect(value.length).toBeGreaterThanOrEqual(2);
+      expect(value.length).toBeLessThanOrEqual(6);
+    });
+  });
+
+  it('gen.string with charset option', () => {
+    const randomSource = createSeededRandomSource(7);
+    const hexGen = gen.string({ length: 16, charset: 'hex' });
+    const value = hexGen.generate(randomSource);
+    expect(value).toHaveLength(16);
+    expect(value).toMatch(/^[0-9a-f]+$/);
+  });
+
+  it('gen.string with custom chars', () => {
+    const randomSource = createSeededRandomSource(7);
+    const customGen = gen.string({ length: 10, chars: 'XY' });
+    const value = customGen.generate(randomSource);
+    expect(value).toHaveLength(10);
+    expect(value).toMatch(/^[XY]+$/);
+  });
+
+  it('gen.string with numeric charset', () => {
+    const randomSource = createSeededRandomSource(7);
+    const numericGen = gen.string({ length: 6, charset: 'numeric' });
+    const value = numericGen.generate(randomSource);
+    expect(value).toHaveLength(6);
+    expect(value).toMatch(/^[0-9]+$/);
+  });
+
+  it('gen.string number argument preserves backward compatibility', () => {
+    const randomSource = createSeededRandomSource(7);
+    const value = gen.string(5).generate(randomSource);
+    expect(value).toHaveLength(5);
+    expect(value).toMatch(/^[a-z0-9]+$/);
+  });
+
+  it('gen.string rejects empty chars', () => {
+    expect(() => gen.string({ length: 5, chars: '' })).toThrowError(RangeError);
+  });
+
+  it('gen.bigint respects bounds', () => {
+    const randomSource = createSeededRandomSource(7);
+    const generator = gen.bigint(10n, 50n);
+    Array.from({ length: 100 }).forEach(() => {
+      const value = generator.generate(randomSource);
+      expect(value).toBeGreaterThanOrEqual(10n);
+      expect(value).toBeLessThanOrEqual(50n);
+    });
+  });
+
+  it('gen.bigint defaults to 0n..100n', () => {
+    const randomSource = createSeededRandomSource(7);
+    const generator = gen.bigint();
+    Array.from({ length: 50 }).forEach(() => {
+      const value = generator.generate(randomSource);
+      expect(value).toBeGreaterThanOrEqual(0n);
+      expect(value).toBeLessThanOrEqual(100n);
+    });
+  });
+
+  it('gen.bigint rejects invalid range', () => {
+    expect(() => gen.bigint(10n, 5n)).toThrowError(RangeError);
+  });
+
+  it('gen.bigint shrinks toward 0n', () => {
+    const generator = gen.bigint(0n, 100n);
+    const shrunk = Array.from(generator.shrink(80n));
+    expect(shrunk.length).toBeGreaterThan(0);
+    expect(shrunk.every((v) => v >= 0n && v <= 100n)).toBe(true);
+    expect(shrunk[shrunk.length - 1]).toBe(0n);
+  });
+
+  it('gen.bigint shrinks toward min when 0 is out of range', () => {
+    const generator = gen.bigint(10n, 50n);
+    const shrunk = Array.from(generator.shrink(40n));
+    expect(shrunk.length).toBeGreaterThan(0);
+    expect(shrunk.every((v) => v >= 10n && v <= 50n)).toBe(true);
+    expect(shrunk[shrunk.length - 1]).toBe(10n);
+  });
 });

@@ -3,6 +3,22 @@ import { randomInt, replaceAt, shrinkLengths, shrinkString } from './shrink-util
 
 type GenShape = Record<string, Arbitrary<unknown> | Gen<unknown>>;
 
+type CharsetName = 'alphanumeric' | 'alpha' | 'hex' | 'numeric' | 'ascii';
+
+interface StringOptions {
+  length?: number;
+  charset?: CharsetName;
+  chars?: string;
+}
+
+const CHARSETS: Record<CharsetName, string> = {
+  alphanumeric: 'abcdefghijklmnopqrstuvwxyz0123456789',
+  alpha: 'abcdefghijklmnopqrstuvwxyz',
+  hex: '0123456789abcdef',
+  numeric: '0123456789',
+  ascii: Array.from({ length: 95 }, (_, i) => String.fromCharCode(32 + i)).join('')
+};
+
 type InferValue<T> = T extends Arbitrary<infer U>
   ? U
   : T extends Gen<infer V>
@@ -219,16 +235,18 @@ export const gen = {
     );
   },
   /**
-   * Lowercase alphanumeric string of a fixed length.
+   * Generate a string of a given length from a character set.
    *
    * @example
    * ```ts
-   * const ids = gen.string(8);
+   * gen.string(8);
+   * gen.string({ length: 8, charset: 'hex' });
+   * gen.string({ length: 8, chars: 'ABC123' });
    * ```
    */
-  string(length = 8): Arbitrary<string> {
+  string(lengthOrOptions: number | StringOptions = 8): Arbitrary<string> {
+    const { length, chars } = normalizeStringOptions(lengthOrOptions);
     assertLength(length, 'string length');
-    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
     return createArbitrary(
       (randomSource) => Array.from({ length }, () => chars[Math.floor(randomSource() * chars.length)]).join(''),
       (value) => shrinkString(value)
@@ -305,6 +323,27 @@ export const gen = {
         return new Date(minTime + offset);
       },
       (value) => shrinkDate(value, min, max)
+    );
+  },
+  /**
+   * BigInt generator inclusive of min and max.
+   *
+   * @example
+   * ```ts
+   * const bigints = gen.bigint(0n, 100n);
+   * ```
+   */
+  bigint(min = 0n, max = 100n): Arbitrary<bigint> {
+    if (min > max) {
+      throw new RangeError('bigint range must have min <= max');
+    }
+    const range = max - min;
+    return createArbitrary(
+      (randomSource) => {
+        const fraction = BigInt(Math.floor(randomSource() * Number(range + 1n)));
+        return min + fraction;
+      },
+      (value) => shrinkBigInt(value, min, max)
     );
   },
   /**
@@ -504,6 +543,39 @@ export const gen = {
     );
   }
 };
+
+function normalizeStringOptions(lengthOrOptions: number | StringOptions): { length: number; chars: string } {
+  if (typeof lengthOrOptions === 'number') {
+    return { length: lengthOrOptions, chars: CHARSETS.alphanumeric };
+  }
+  const length = lengthOrOptions.length ?? 8;
+  if (lengthOrOptions.chars !== undefined) {
+    if (lengthOrOptions.chars.length === 0) {
+      throw new RangeError('chars must be a non-empty string');
+    }
+    return { length, chars: lengthOrOptions.chars };
+  }
+  const charsetName = lengthOrOptions.charset ?? 'alphanumeric';
+  return { length, chars: CHARSETS[charsetName] };
+}
+
+function* shrinkBigInt(value: bigint, min: bigint, max: bigint): Iterable<bigint> {
+  if (value < min || value > max) {
+    return;
+  }
+  const target = 0n >= min && 0n <= max ? 0n : min;
+  let current = value;
+  while (current !== target) {
+    const next = current > target
+      ? (current + target) / 2n
+      : (current + target + 1n) / 2n;
+    if (next < min || next > max) {
+      break;
+    }
+    current = next;
+    yield current;
+  }
+}
 
 function assertRange(min: number, max: number, label: string): void {
   if (!Number.isFinite(min) || !Number.isFinite(max)) {
