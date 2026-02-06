@@ -1,12 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { gen } from '../src/generators.js';
+import { includesShorter } from './helpers.js';
 
 function lengths(values: Array<{ length: number }>): number[] {
   return values.map((value) => value.length);
-}
-
-function includesShorter(values: number[], original: number): boolean {
-  return values.some((value) => value < original);
 }
 
 describe('composite shrink monotonicity', () => {
@@ -16,7 +13,7 @@ describe('composite shrink monotonicity', () => {
     const shrinks = Array.from(generator.shrink(value));
     const lengthValues = lengths(shrinks);
     expect(includesShorter(lengthValues, value.length)).toBe(true);
-    expect(lengthValues.every((lengthValue) => lengthValue >= 0 && lengthValue <= value.length)).toBe(true);
+    expect(lengthValues.every((v) => v >= 0 && v <= value.length)).toBe(true);
   });
 
   it('shrinks records toward fewer keys', () => {
@@ -25,7 +22,7 @@ describe('composite shrink monotonicity', () => {
     const shrinks = Array.from(generator.shrink(value));
     const lengthValues = lengths(shrinks.map((entry) => ({ length: Object.keys(entry).length })));
     expect(includesShorter(lengthValues, Object.keys(value).length)).toBe(true);
-    expect(lengthValues.every((lengthValue) => lengthValue >= 0 && lengthValue <= Object.keys(value).length)).toBe(true);
+    expect(lengthValues.every((v) => v >= 0 && v <= Object.keys(value).length)).toBe(true);
   });
 
   it('shrinks unique arrays toward shorter lengths', () => {
@@ -34,7 +31,7 @@ describe('composite shrink monotonicity', () => {
     const shrinks = Array.from(generator.shrink(value));
     const lengthValues = lengths(shrinks);
     expect(includesShorter(lengthValues, value.length)).toBe(true);
-    expect(lengthValues.every((lengthValue) => lengthValue >= 0 && lengthValue <= value.length)).toBe(true);
+    expect(lengthValues.every((v) => v >= 0 && v <= value.length)).toBe(true);
   });
 
   it('shrinks sets toward smaller sizes', () => {
@@ -43,6 +40,6 @@ describe('composite shrink monotonicity', () => {
     const shrinks = Array.from(generator.shrink(value));
     const sizeValues = shrinks.map((entry) => entry.size);
     expect(includesShorter(sizeValues, value.size)).toBe(true);
-    expect(sizeValues.every((sizeValue) => sizeValue >= 0 && sizeValue <= value.size)).toBe(true);
+    expect(sizeValues.every((v) => v >= 0 && v <= value.size)).toBe(true);
   });
 });

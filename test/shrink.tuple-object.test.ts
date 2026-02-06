@@ -1,11 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { gen } from '../src/generators.js';
+import { includesShorter } from './helpers.js';
 
-function includesShorter(values: number[], original: number): boolean {
-  return values.some((value) => value < original);
-}
-
-describe('tuple and object shrink behavior', () => {
+describe('tuple and object shrink behaviour', () => {
   it('shrinks tuple entries', () => {
     const generator = gen.tuple(gen.int(1, 10), gen.string(4));
     const value: [number, string] = [10, 'abcd'];

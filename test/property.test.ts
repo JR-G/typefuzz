@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { gen } from '../src/generators.js';
 import { fuzz } from '../src/index.js';
-import { createSeededRandomSource } from '../src/core.js';
 import { fuzzAssert, fuzzAssertAsync, formatSerializedFailure, runProperty, runPropertyAsync, runReplay, serializeFailure } from '../src/property.js';
 
 describe('property runner', () => {
@@ -107,9 +106,4 @@ function catchError(action: () => void): unknown {
   } catch (error) {
     return error;
   }
-}
-
-function valueForSeed(seed: number): number {
-  const randomSource = createSeededRandomSource(seed);
-  return Math.floor(randomSource() * 1000);
 }

@@ -1,17 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { createSeededRandomSource } from '../src/core.js';
 import { gen } from '../src/generators.js';
 import { runProperty } from '../src/property.js';
-
-function keyCount(value: Record<string, unknown>): number {
-  return Object.keys(value).length;
-}
+import { generateOne, keyCount } from './helpers.js';
 
 describe('dictionary generator', () => {
   it('respects key bounds', () => {
-    const generator = gen.dictionary(gen.string(1), gen.int(1, 1), { minKeys: 2, maxKeys: 3 });
-    const randomSource = createSeededRandomSource(42);
-    const value = generator.generate(randomSource);
+    const value = generateOne(gen.dictionary(gen.string(1), gen.int(1, 1), { minKeys: 2, maxKeys: 3 }), 42);
     const count = keyCount(value);
     expect(count).toBeGreaterThanOrEqual(2);
     expect(count).toBeLessThanOrEqual(3);

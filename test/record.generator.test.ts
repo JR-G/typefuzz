@@ -1,15 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { gen } from '../src/generators.js';
 import { runProperty } from '../src/property.js';
-
-function keyCount(value: Record<string, unknown>): number {
-  return Object.keys(value).length;
-}
+import { keyCount } from './helpers.js';
 
 describe('record generator', () => {
   it('respects key bounds', () => {
-    const generator = gen.record(gen.int(1, 1), { minKeys: 2, maxKeys: 3 });
-    const value = generator.generate(() => 0.5);
+    const value = gen.record(gen.int(1, 1), { minKeys: 2, maxKeys: 3 }).generate(() => 0.5);
     const count = keyCount(value);
     expect(count).toBeGreaterThanOrEqual(2);
     expect(count).toBeLessThanOrEqual(3);

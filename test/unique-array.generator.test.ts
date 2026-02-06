@@ -1,20 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { createSeededRandomSource } from '../src/core.js';
 import { gen } from '../src/generators.js';
 import { runProperty } from '../src/property.js';
-
-function uniqueCount(values: unknown[]): number {
-  return new Set(values).size;
-}
+import { generateOne } from './helpers.js';
 
 describe('uniqueArray generator', () => {
   it('respects length bounds', () => {
-    const generator = gen.uniqueArray(gen.int(1, 5), { minLength: 2, maxLength: 3 });
-    const randomSource = createSeededRandomSource(33);
-    const value = generator.generate(randomSource);
+    const value = generateOne(gen.uniqueArray(gen.int(1, 5), { minLength: 2, maxLength: 3 }), 33);
     expect(value.length).toBeGreaterThanOrEqual(2);
     expect(value.length).toBeLessThanOrEqual(3);
-    expect(uniqueCount(value)).toBe(value.length);
+    expect(new Set(value).size).toBe(value.length);
   });
 
   it('shrinks toward minimal failing length', () => {
