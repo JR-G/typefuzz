@@ -1,7 +1,7 @@
 {
   "name": "typefuzz",
   "version": "0.1.0",
-  "private": true,
+  "author": "JR-G",
   "type": "module",
   "description": "TypeScript fuzz/property testing utilities with test runner integrations",
   "keywords": ["fuzz", "property-based", "testing", "vitest", "jest", "typescript"],
