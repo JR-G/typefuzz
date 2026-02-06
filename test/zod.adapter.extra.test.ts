@@ -128,6 +128,28 @@ describe('zod adapter extra types', () => {
     });
   });
 
+  it('respects z.bigint() bounds', () => {
+    const schema = z.bigint().min(10n).max(50n);
+    const randomSource = createSeededRandomSource(17);
+    const arbitrary = zodArbitrary(schema);
+    Array.from({ length: 100 }).forEach(() => {
+      const value = arbitrary.generate(randomSource);
+      expect(value).toBeGreaterThanOrEqual(10n);
+      expect(value).toBeLessThanOrEqual(50n);
+    });
+  });
+
+  it('respects exclusive z.bigint() bounds via .gt() and .lt()', () => {
+    const schema = z.bigint().gt(0n).lt(10n);
+    const randomSource = createSeededRandomSource(17);
+    const arbitrary = zodArbitrary(schema);
+    Array.from({ length: 100 }).forEach(() => {
+      const value = arbitrary.generate(randomSource);
+      expect(value).toBeGreaterThan(0n);
+      expect(value).toBeLessThan(10n);
+    });
+  });
+
   it('map with number keys preserves key type', () => {
     const schema = z.map(z.number().int().min(1).max(10), z.string().min(1).max(3));
     const randomSource = createSeededRandomSource(17);

@@ -71,7 +71,7 @@ function buildArbitrary(schema: z.ZodTypeAny): Arbitrary<unknown> {
     return unionArbitrary(schema) as Arbitrary<unknown>;
   }
   if (schema instanceof z.ZodBigInt) {
-    return gen.bigint() as Arbitrary<unknown>;
+    return bigintArbitrary(schema) as Arbitrary<unknown>;
   }
   if (schema instanceof z.ZodDate) {
     return gen.date() as Arbitrary<unknown>;
@@ -214,6 +214,25 @@ function setArbitrary(schema: z.ZodSet<z.ZodTypeAny>): Arbitrary<Set<unknown>> {
 
 function literalArbitrary<T>(value: T): Arbitrary<T> {
   return createArbitrary(() => value, () => []);
+}
+
+function bigintArbitrary(schema: z.ZodBigInt): Arbitrary<bigint> {
+  const { min, max } = bigintBounds(schema);
+  return gen.bigint(min ?? 0n, max ?? 100n);
+}
+
+function bigintBounds(schema: z.ZodBigInt): { min?: bigint; max?: bigint } {
+  return schema._def.checks.reduce<{ min?: bigint; max?: bigint }>((state, check) => {
+    if (check.kind === 'min') {
+      const bound = check.inclusive ? check.value : check.value + 1n;
+      return { ...state, min: bound };
+    }
+    if (check.kind === 'max') {
+      const bound = check.inclusive ? check.value : check.value - 1n;
+      return { ...state, max: bound };
+    }
+    return state;
+  }, {});
 }
 
 function stringBounds(schema: z.ZodString): { min?: number; max?: number } {
