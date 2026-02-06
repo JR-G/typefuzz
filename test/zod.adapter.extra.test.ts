@@ -150,6 +150,46 @@ describe('zod adapter extra types', () => {
     });
   });
 
+  it('handles z.number().int().min() with only a lower bound', () => {
+    const schema = z.number().int().min(200);
+    const randomSource = createSeededRandomSource(17);
+    const arbitrary = zodArbitrary(schema);
+    Array.from({ length: 50 }).forEach(() => {
+      const value = arbitrary.generate(randomSource);
+      expect(value).toBeGreaterThanOrEqual(200);
+    });
+  });
+
+  it('handles z.number().int().max() with only an upper bound', () => {
+    const schema = z.number().int().max(-5);
+    const randomSource = createSeededRandomSource(17);
+    const arbitrary = zodArbitrary(schema);
+    Array.from({ length: 50 }).forEach(() => {
+      const value = arbitrary.generate(randomSource);
+      expect(value).toBeLessThanOrEqual(-5);
+    });
+  });
+
+  it('handles z.string().max() with only an upper bound', () => {
+    const schema = z.string().max(3);
+    const randomSource = createSeededRandomSource(17);
+    const arbitrary = zodArbitrary(schema);
+    Array.from({ length: 50 }).forEach(() => {
+      const value = arbitrary.generate(randomSource);
+      expect(value.length).toBeLessThanOrEqual(3);
+    });
+  });
+
+  it('handles z.bigint().min() with only a lower bound', () => {
+    const schema = z.bigint().min(200n);
+    const randomSource = createSeededRandomSource(17);
+    const arbitrary = zodArbitrary(schema);
+    Array.from({ length: 50 }).forEach(() => {
+      const value = arbitrary.generate(randomSource);
+      expect(value).toBeGreaterThanOrEqual(200n);
+    });
+  });
+
   it('map with number keys preserves key type', () => {
     const schema = z.map(z.number().int().min(1).max(10), z.string().min(1).max(3));
     const randomSource = createSeededRandomSource(17);

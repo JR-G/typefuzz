@@ -108,8 +108,8 @@ function buildArbitrary(schema: z.ZodTypeAny): Arbitrary<unknown> {
 
 function stringArbitrary(schema: z.ZodString): Arbitrary<string> {
   const { min, max } = stringBounds(schema);
-  const lengthMin = min ?? DEFAULT_STRING_LENGTH;
-  const lengthMax = max ?? lengthMin;
+  const lengthMin = min ?? Math.min(DEFAULT_STRING_LENGTH, max ?? DEFAULT_STRING_LENGTH);
+  const lengthMax = max ?? Math.max(lengthMin, DEFAULT_STRING_LENGTH);
   if (lengthMin === lengthMax) {
     return gen.string(lengthMin);
   }
@@ -125,8 +125,8 @@ function stringArbitrary(schema: z.ZodString): Arbitrary<string> {
 function numberArbitrary(schema: z.ZodNumber): Arbitrary<number> {
   const { min, max, integer } = numberBounds(schema);
   const defaultRange = integer ? DEFAULT_INT_RANGE : DEFAULT_FLOAT_RANGE;
-  const rangeMin = min ?? defaultRange.min;
-  const rangeMax = max ?? defaultRange.max;
+  const rangeMin = min ?? Math.min(defaultRange.min, max ?? defaultRange.min);
+  const rangeMax = max ?? Math.max(defaultRange.max, rangeMin);
   return integer ? gen.int(rangeMin, rangeMax) : gen.float(rangeMin, rangeMax);
 }
 
@@ -218,7 +218,9 @@ function literalArbitrary<T>(value: T): Arbitrary<T> {
 
 function bigintArbitrary(schema: z.ZodBigInt): Arbitrary<bigint> {
   const { min, max } = bigintBounds(schema);
-  return gen.bigint(min ?? 0n, max ?? 100n);
+  const rangeMin = min ?? (max !== undefined && max < 0n ? max : 0n);
+  const rangeMax = max ?? (min !== undefined && min > 100n ? min + 100n : 100n);
+  return gen.bigint(rangeMin, rangeMax);
 }
 
 function bigintBounds(schema: z.ZodBigInt): { min?: bigint; max?: bigint } {
