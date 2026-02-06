@@ -107,6 +107,27 @@ describe('zod adapter extra types', () => {
     expect(typeof value).toBe('string');
   });
 
+  it('respects z.string().length() constraint', () => {
+    const schema = z.string().length(5);
+    const randomSource = createSeededRandomSource(17);
+    const arbitrary = zodArbitrary(schema);
+    Array.from({ length: 50 }).forEach(() => {
+      const value = arbitrary.generate(randomSource);
+      expect(value).toHaveLength(5);
+    });
+  });
+
+  it('respects exclusive number bounds via .gt() and .lt()', () => {
+    const schema = z.number().int().gt(0).lt(10);
+    const randomSource = createSeededRandomSource(17);
+    const arbitrary = zodArbitrary(schema);
+    Array.from({ length: 100 }).forEach(() => {
+      const value = arbitrary.generate(randomSource);
+      expect(value).toBeGreaterThan(0);
+      expect(value).toBeLessThan(10);
+    });
+  });
+
   it('map with number keys preserves key type', () => {
     const schema = z.map(z.number().int().min(1).max(10), z.string().min(1).max(3));
     const randomSource = createSeededRandomSource(17);

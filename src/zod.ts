@@ -224,17 +224,23 @@ function stringBounds(schema: z.ZodString): { min?: number; max?: number } {
     if (check.kind === 'max') {
       return { ...state, max: check.value };
     }
+    if (check.kind === 'length') {
+      return { min: check.value, max: check.value };
+    }
     return state;
   }, {});
 }
 
 function numberBounds(schema: z.ZodNumber): { min?: number; max?: number; integer: boolean } {
+  const isInt = schema._def.checks.some((check) => check.kind === 'int');
   return schema._def.checks.reduce<{ min?: number; max?: number; integer: boolean }>((state, check) => {
     if (check.kind === 'min') {
-      return { ...state, min: check.value };
+      const bound = check.inclusive ? check.value : isInt ? check.value + 1 : check.value + Number.EPSILON;
+      return { ...state, min: bound };
     }
     if (check.kind === 'max') {
-      return { ...state, max: check.value };
+      const bound = check.inclusive ? check.value : isInt ? check.value - 1 : check.value - Number.EPSILON;
+      return { ...state, max: bound };
     }
     if (check.kind === 'int') {
       return { ...state, integer: true };
