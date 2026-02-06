@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="logo.png" alt="typefuzz" width="200" />
+  <img src="https://raw.githubusercontent.com/JR-G/typefuzz/main/logo.png" alt="typefuzz" width="200" />
 </p>
 
 <p align="center">
