@@ -132,8 +132,8 @@ function numberArbitrary(schema: z.ZodNumber): Arbitrary<number> {
 
 function arrayArbitrary(schema: z.ZodArray<z.ZodTypeAny>): Arbitrary<unknown[]> {
   const { min, max } = arrayBounds(schema);
-  const lengthMin = min ?? DEFAULT_ARRAY_LENGTH;
-  const lengthMax = max ?? lengthMin;
+  const lengthMin = min ?? Math.min(DEFAULT_ARRAY_LENGTH, max ?? DEFAULT_ARRAY_LENGTH);
+  const lengthMax = max ?? Math.max(lengthMin, DEFAULT_ARRAY_LENGTH);
   const itemArbitrary = buildArbitrary(schema.element);
 
   if (lengthMin === lengthMax) {
