@@ -13,8 +13,8 @@ Initial release.
   uuid and email
 - Sync and async property runners with configurable run count and shrink budget
 - Vitest and Jest integrations via `typefuzz/vitest` and `typefuzz/jest`
-- Zod schema adapter via `typefuzz/zod` supporting string, number, boolean,
-  array, object, record, tuple, union, discriminatedUnion, literal, enum,
-  nativeEnum, optional, nullable, map, set, date, lazy, default, effects,
-  undefined, void, any, unknown
+- Zod schema adapter via `typefuzz/zod` supporting string, number, bigint,
+  boolean, array, object, record, tuple, union, discriminatedUnion, literal,
+  enum, nativeEnum, optional, nullable, map, set, date, lazy, default,
+  effects, undefined, void, any, unknown
 - Failure serialisation with replay hints

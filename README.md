@@ -162,6 +162,7 @@ const arb = zodArbitrary(schema);
 - `z.nullable`
 - `z.map`
 - `z.set`
+- `z.bigint`
 - `z.date`
 - `z.lazy`
 - `z.default`

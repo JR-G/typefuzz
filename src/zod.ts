@@ -70,6 +70,9 @@ function buildArbitrary(schema: z.ZodTypeAny): Arbitrary<unknown> {
   if (schema instanceof z.ZodUnion) {
     return unionArbitrary(schema) as Arbitrary<unknown>;
   }
+  if (schema instanceof z.ZodBigInt) {
+    return gen.bigint() as Arbitrary<unknown>;
+  }
   if (schema instanceof z.ZodDate) {
     return gen.date() as Arbitrary<unknown>;
   }
