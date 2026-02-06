@@ -1,4 +1,4 @@
-import { createArbitrary, type Arbitrary, type Gen, type Shrink } from './core.js';
+import { createArbitrary, normalizeArbitrary, type Arbitrary, type Gen, type Shrink } from './core.js';
 import { randomInt, replaceAt, shrinkLengths, shrinkString } from './shrink-utils.js';
 
 type GenShape = Record<string, Arbitrary<unknown> | Gen<unknown>>;
@@ -118,7 +118,7 @@ export const gen = {
     if (!Number.isInteger(maxKeys) || maxKeys < minKeys) {
       throw new RangeError('maxKeys must be an integer >= minKeys');
     }
-    const arbitrary = toArbitrary(valueArbitrary);
+    const arbitrary = normalizeArbitrary(valueArbitrary);
     return createArbitrary(
       (randomSource) => {
         const keyCount = randomInt(randomSource, minKeys, maxKeys);
@@ -152,8 +152,8 @@ export const gen = {
     if (!Number.isInteger(maxKeys) || maxKeys < minKeys) {
       throw new RangeError('maxKeys must be an integer >= minKeys');
     }
-    const keyGenerator = toArbitrary(keyArbitrary);
-    const valueGenerator = toArbitrary(valueArbitrary);
+    const keyGenerator = normalizeArbitrary(keyArbitrary);
+    const valueGenerator = normalizeArbitrary(valueArbitrary);
     return createArbitrary(
       (randomSource) => {
         const availableKeys = buildUniqueKeys(keyGenerator, randomSource, maxKeys);
@@ -188,7 +188,7 @@ export const gen = {
     if (!Number.isInteger(maxSize) || maxSize < minSize) {
       throw new RangeError('maxSize must be an integer >= minSize');
     }
-    const valueGenerator = toArbitrary(valueArbitrary);
+    const valueGenerator = normalizeArbitrary(valueArbitrary);
     return createArbitrary(
       (randomSource) => {
         const targetSize = randomInt(randomSource, minSize, maxSize);
@@ -221,7 +221,7 @@ export const gen = {
     if (!Number.isInteger(maxLength) || maxLength < minLength) {
       throw new RangeError('maxLength must be an integer >= minLength');
     }
-    const valueGenerator = toArbitrary(valueArbitrary);
+    const valueGenerator = normalizeArbitrary(valueArbitrary);
     return createArbitrary(
       (randomSource) => {
         const targetLength = randomInt(randomSource, minLength, maxLength);
@@ -353,7 +353,7 @@ export const gen = {
    * ```
    */
   array<T>(item: Arbitrary<T> | Gen<T>, lengthOrOptions: number | { minLength?: number; maxLength?: number } = 5): Arbitrary<T[]> {
-    const arbitrary = toArbitrary(item);
+    const arbitrary = normalizeArbitrary(item);
     if (typeof lengthOrOptions === 'number') {
       assertLength(lengthOrOptions, 'array length');
       const length = lengthOrOptions;
@@ -389,7 +389,7 @@ export const gen = {
   object<T extends GenShape>(shape: T): Arbitrary<{ [K in keyof T]: InferValue<T[K]> }> {
     return createArbitrary(
       (randomSource) => Object.fromEntries(
-        Object.keys(shape).map((key) => [key, toArbitrary(shape[key]).generate(randomSource)])
+        Object.keys(shape).map((key) => [key, normalizeArbitrary(shape[key]).generate(randomSource)])
       ) as { [K in keyof T]: InferValue<T[K]> },
       (value) => shrinkObject(value, shape)
     );
@@ -406,7 +406,7 @@ export const gen = {
     if (options.length === 0) {
       throw new RangeError('oneOf requires at least one option');
     }
-    const arbitraries = options.map((option) => toArbitrary(option));
+    const arbitraries = options.map((option) => normalizeArbitrary(option));
     return createArbitrary(
       (randomSource) => {
         const index = Math.floor(randomSource() * arbitraries.length);
@@ -432,7 +432,7 @@ export const gen = {
     }
     const normalized = options.map((option) => ({
       weight: option.weight,
-      arbitrary: toArbitrary(option.arbitrary)
+      arbitrary: normalizeArbitrary(option.arbitrary)
     }));
     const totalWeight = normalized.reduce((sum, entry) => sum + entry.weight, 0);
     if (!Number.isFinite(totalWeight) || totalWeight <= 0) {
@@ -481,7 +481,7 @@ export const gen = {
    * ```
    */
   tuple<T extends Array<Arbitrary<unknown> | Gen<unknown>>>(...items: T): Arbitrary<{ [K in keyof T]: InferValue<T[K]> }> {
-    const arbitraries = items.map((item) => toArbitrary(item));
+    const arbitraries = items.map((item) => normalizeArbitrary(item));
     return createArbitrary(
       (randomSource) => arbitraries.map((arbitrary) => arbitrary.generate(randomSource)) as { [K in keyof T]: InferValue<T[K]> },
       (value) => shrinkTuple(value, arbitraries)
@@ -499,7 +499,7 @@ export const gen = {
     if (!Number.isFinite(undefinedProbability) || undefinedProbability < 0 || undefinedProbability > 1) {
       throw new RangeError('undefinedProbability must be between 0 and 1');
     }
-    const arbitrary = toArbitrary(item);
+    const arbitrary = normalizeArbitrary(item);
     return createArbitrary(
       (randomSource) => (randomSource() < undefinedProbability ? undefined : arbitrary.generate(randomSource)),
       (value) => (value === undefined ? [] : [undefined, ...arbitrary.shrink(value)])
@@ -514,7 +514,7 @@ export const gen = {
    * ```
    */
   map<T, U>(item: Arbitrary<T> | Gen<T>, mapper: (value: T) => U, unmap?: (value: U) => T | undefined): Arbitrary<U> {
-    const arbitrary = toArbitrary(item);
+    const arbitrary = normalizeArbitrary(item);
     return createArbitrary(
       (randomSource) => mapper(arbitrary.generate(randomSource)),
       (value) => shrinkMapped(value, arbitrary, mapper, unmap)
@@ -532,7 +532,7 @@ export const gen = {
     if (!Number.isFinite(maxAttempts) || !Number.isInteger(maxAttempts) || maxAttempts <= 0) {
       throw new RangeError('maxAttempts must be a positive integer');
     }
-    const arbitrary = toArbitrary(item);
+    const arbitrary = normalizeArbitrary(item);
     return createArbitrary(
       (randomSource) => generateFilteredValue(arbitrary, predicate, randomSource, maxAttempts),
       (value) => shrinkFiltered(value, arbitrary, predicate)
@@ -601,13 +601,6 @@ function assertLength(length: number, label: string): void {
   if (!Number.isFinite(length) || !Number.isInteger(length) || length < 0) {
     throw new RangeError(`${label} must be a non-negative integer`);
   }
-}
-
-function toArbitrary<T>(input: Arbitrary<T> | Gen<T>): Arbitrary<T> {
-  if (typeof input === 'function') {
-    return createArbitrary(input, () => []);
-  }
-  return input;
 }
 
 function* shrinkInt(value: number, min: number, max: number): Iterable<number> {
@@ -713,7 +706,7 @@ function* shrinkObject<T extends GenShape>(
 ): Iterable<{ [K in keyof T]: InferValue<T[K]> }> {
   const shrinkCandidates = Object.keys(shape).flatMap((key) => {
     const typedKey = key as keyof T;
-    const arbitrary = toArbitrary(shape[typedKey]);
+    const arbitrary = normalizeArbitrary(shape[typedKey]);
     return Array.from(arbitrary.shrink(value[typedKey]))
       .map((shrunk) => ({ ...value, [typedKey]: shrunk as InferValue<T[keyof T]> }));
   });
