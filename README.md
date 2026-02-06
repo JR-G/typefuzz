@@ -19,14 +19,6 @@ fuzz.assert(gen.array(gen.int(0, 10), 5), (values) => {
 bun add typefuzz
 ```
 
-## Status
-
-Early scaffolding. The API is not stable yet.
-
-## API stability
-
-Expect breaking changes while the API evolves. The goal is to stabilize core generators and the `fuzz` API before cutting a public release.
-
 ## Tooling
 
 This repo uses Bun for all commands.
@@ -34,6 +26,108 @@ This repo uses Bun for all commands.
 ```sh
 bun install
 bun run test
+```
+
+## Generators
+
+- `gen.int(min, max)` inclusive integer generator
+- `gen.float(min, max)` float generator in `[min, max)`
+- `gen.bigint(min, max)` inclusive bigint generator (defaults `0n`–`100n`)
+- `gen.bool()` boolean generator
+- `gen.string(lengthOrOptions)` string from a character set
+- `gen.uuid()` UUID v4 string
+- `gen.email()` basic email address
+- `gen.date(min, max)` date generator within bounds
+- `gen.array(item, length)` fixed-length arrays
+- `gen.array(item, { minLength, maxLength })` variable-length arrays
+- `gen.uniqueArray(item, { minLength, maxLength })` unique arrays
+- `gen.object(shape)` object from generator map
+- `gen.record(value, { minKeys, maxKeys })` record with string keys
+- `gen.dictionary(key, value, { minKeys, maxKeys })` dictionary with custom keys
+- `gen.set(value, { minSize, maxSize })` set generator
+- `gen.oneOf(...options)` random choice
+- `gen.weightedOneOf(options)` weighted choice
+- `gen.frequency(options)` alias for `weightedOneOf`
+- `gen.tuple(...items)` heterogeneous tuple
+- `gen.optional(item, probability)` optional values
+- `gen.constant(value)` constant generator
+- `gen.constantFrom(...values)` constant choice
+- `gen.map(item, mapper, unmap?)` map values
+- `gen.filter(item, predicate, maxAttempts?)` filter values
+
+### `gen.string` charsets
+
+The default character set is lowercase alphanumeric. Use an options object to pick a different set:
+
+```ts
+gen.string(8);                                   // 'alphanumeric' (default)
+gen.string({ length: 16, charset: 'hex' });      // 0-9a-f
+gen.string({ length: 6, charset: 'alpha' });     // a-z
+gen.string({ length: 4, charset: 'numeric' });   // 0-9
+gen.string({ length: 10, charset: 'ascii' });    // printable ASCII
+gen.string({ length: 8, chars: 'ABC123' });      // custom character pool
+```
+
+Predefined charsets: `'alphanumeric'`, `'alpha'`, `'hex'`, `'numeric'`, `'ascii'`.
+
+## Core API
+
+- `fuzz.assert(arbitrary, predicate, config?)` run a property and throw on failure
+- `fuzz.property(arbitrary, predicate, config?)` run and return a result
+- `fuzz.replay(arbitrary, predicate, { seed, runs })` replay a property
+- `fuzz.assertReplay(arbitrary, predicate, { seed, runs })` replay and throw on failure
+- `fuzz.serializeFailure(failure)` JSON-friendly failure payload
+- `fuzz.formatSerializedFailure(payload)` human-readable failure string
+
+### Async API
+
+All core methods have async variants that accept async predicates:
+
+- `fuzz.assertAsync(arbitrary, predicate, config?)`
+- `fuzz.propertyAsync(arbitrary, predicate, config?)`
+- `fuzz.replayAsync(arbitrary, predicate, { seed, runs })`
+- `fuzz.assertReplayAsync(arbitrary, predicate, { seed, runs })`
+
+```ts
+await fuzz.assertAsync(gen.int(1, 100), async (n) => {
+  const result = await someAsyncCheck(n);
+  return result.ok;
+}, { runs: 50 });
+```
+
+## Test runner usage
+
+```ts
+import { fuzzIt } from 'typefuzz/vitest';
+import { gen } from 'typefuzz';
+
+fuzzIt('sum is commutative', gen.tuple(gen.int(0, 10), gen.int(0, 10)), ([left, right]) => {
+  return left + right === right + left;
+}, { runs: 200, seed: 123 });
+```
+
+### Async test runner usage
+
+```ts
+import { fuzzItAsync } from 'typefuzz/vitest';
+import { gen } from 'typefuzz';
+
+fuzzItAsync('async property', gen.int(1, 100), async (n) => {
+  const result = await fetchSomething(n);
+  return result.status === 200;
+}, { runs: 50 });
+```
+
+### Jest
+
+```ts
+import { fuzzIt } from 'typefuzz/jest';
+import { gen } from 'typefuzz';
+
+fuzzIt('reverse is involutive', gen.array(gen.int(0, 10), 5), (values) => {
+  const doubleReversed = [...values].reverse().reverse();
+  return JSON.stringify(doubleReversed) === JSON.stringify(values);
+}, { runs: 200, seed: 123 });
 ```
 
 ## Zod adapter (optional)
@@ -68,88 +162,16 @@ const arb = zodArbitrary(schema);
 - `z.nullable`
 - `z.map`
 - `z.set`
+- `z.date`
+- `z.lazy`
+- `z.default`
+- `z.any` / `z.unknown`
+- `z.effects` (transforms, refinements, preprocess)
+- `z.undefined` / `z.void`
 
-## Goals
+## Shrinking behaviour
 
-- Simple property-based test helper for Vitest and Jest
-- Deterministic seeding + replay
-- Shrinking of failing cases
-- Optional schema adapters (zod/typebox/io-ts)
-
-## Generators
-
-- `gen.int(min, max)` inclusive integer generator
-- `gen.float(min, max)` float generator in `[min, max)`
-- `gen.bool()` boolean generator
-- `gen.string(length)` lowercase alphanumeric string
-- `gen.uuid()` UUID v4 string
-- `gen.email()` basic email address
-- `gen.date(min, max)` date generator within bounds
-- `gen.array(item, length)` fixed-length arrays
-- `gen.uniqueArray(item, { minLength, maxLength })` unique arrays
-- `gen.object(shape)` object from generator map
-- `gen.record(value, { minKeys, maxKeys })` record with string keys
-- `gen.dictionary(key, value, { minKeys, maxKeys })` dictionary with custom keys
-- `gen.set(value, { minSize, maxSize })` set generator
-- `gen.oneOf(...options)` random choice
-- `gen.weightedOneOf(options)` weighted choice
-- `gen.frequency(options)` alias for `weightedOneOf`
-- `gen.tuple(...items)` heterogeneous tuple
-- `gen.optional(item, probability)` optional values
-- `gen.constant(value)` constant generator
-- `gen.constantFrom(...values)` constant choice
-- `gen.map(item, mapper, unmap?)` map values
-- `gen.filter(item, predicate, maxAttempts?)` filter values
-
-## Core API
-
-- `fuzz.assert(arbitrary, predicate, config?)` run a property and throw on failure
-- `fuzz.property(arbitrary, predicate, config?)` run and return a result
-- `fuzz.replay(arbitrary, predicate, { seed, runs })` replay a property
-- `fuzz.assertReplay(arbitrary, predicate, { seed, runs })` replay and throw on failure
-- `fuzz.serializeFailure(failure)` JSON-friendly failure payload
-- `fuzz.formatSerializedFailure(payload)` human-readable failure string
-
-## Roadmap (MVP)
-
-- `fuzzIt` wrapper for Vitest
-- Core generators for primitives/arrays/objects
-- Seeded RNG and reproducible failures
-- Minimal shrinkers for common types
-
-## Structure
-
-- `src/index.ts` core API
-- `src/vitest.ts` Vitest adapter
-- `src/jest.ts` Jest adapter
-- `src/generators.ts` built-in generators
-
-## Test runner usage
-
-```ts
-import { fuzzIt } from 'typefuzz/vitest';
-import { gen } from 'typefuzz';
-
-fuzzIt('sum is commutative', gen.tuple(gen.int(0, 10), gen.int(0, 10)), ([left, right]) => {
-  return left + right === right + left;
-}, { runs: 200, seed: 123 });
-```
-
-### Jest
-
-```ts
-import { fuzzIt } from 'typefuzz/jest';
-import { gen } from 'typefuzz';
-
-fuzzIt('reverse is involutive', gen.array(gen.int(0, 10), 5), (values) => {
-  const doubleReversed = [...values].reverse().reverse();
-  return JSON.stringify(doubleReversed) === JSON.stringify(values);
-}, { runs: 200, seed: 123 });
-```
-
-## Shrinking behavior
-
-When a property fails, Typefuzz attempts to shrink the counterexample by reducing sizes (arrays, records, sets) and moving numbers/dates toward smaller values. The final counterexample is the smallest failing case found within the shrink budget.
+When a property fails, typefuzz attempts to shrink the counterexample by reducing sizes (arrays, records, sets) and moving numbers/dates toward smaller values. The final counterexample is the smallest failing case found within the shrink budget.
 
 ## Replay failures
 
@@ -175,22 +197,30 @@ if (!result.ok && result.failure) {
 }
 ```
 
+## Structure
+
+- `src/index.ts` core API
+- `src/vitest.ts` Vitest adapter
+- `src/jest.ts` Jest adapter
+- `src/generators.ts` built-in generators
+- `src/zod.ts` Zod schema adapter
+
 ## FAQ
 
-Why do some generators throw?  
+Why do some generators throw?
 Generators that require bounds (like `gen.int` or `gen.date`) validate inputs eagerly to surface errors early.
 
-How deterministic are failures?  
+How deterministic are failures?
 Failures include a seed and run count. Use `fuzz.assertReplay` to reproduce the same counterexample path.
 
-Do I need Zod?  
+Do I need Zod?
 No. The Zod adapter is optional; core generators and fuzz helpers do not depend on it.
 
 ## Conventions
 
-- Inclusive bounds: `gen.int(min, max)` and `gen.date(min, max)` include both ends.
+- Inclusive bounds: `gen.int(min, max)`, `gen.bigint(min, max)`, and `gen.date(min, max)` include both ends.
 - Half-open ranges: `gen.float(min, max)` generates values in `[min, max)`.
-- Fixed sizes: `gen.array(item, length)` creates fixed-length arrays; use `gen.uniqueArray` for variable length with uniqueness.
+- Fixed or variable arrays: `gen.array(item, length)` for fixed-length, `gen.array(item, { minLength, maxLength })` for variable-length.
 
 ## Defaults
 
@@ -201,4 +231,4 @@ No. The Zod adapter is optional; core generators and fuzz helpers do not depend 
 
 ## Design notes
 
-Typefuzz prioritizes deterministic generation and shrinking. Shrinkers try smaller sizes first and then smaller values; the shrink budget (`maxShrinks`) bounds the total attempts.
+Typefuzz prioritises deterministic generation and shrinking. Shrinkers try smaller sizes first and then smaller values; the shrink budget (`maxShrinks`) bounds the total attempts.
