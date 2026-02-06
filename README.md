@@ -1,14 +1,14 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/JR-G/typefuzz/main/logo.png" alt="typefuzz" width="200" />
+  <img src="https://raw.githubusercontent.com/JR-G/typefuzz/main/logo.png" alt="TypeFuzz" width="360" />
 </p>
 
 <p align="center">
   <a href="https://github.com/JR-G/typefuzz/actions/workflows/ci.yml"><img src="https://github.com/JR-G/typefuzz/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
   <a href="https://www.npmjs.com/package/typefuzz"><img src="https://img.shields.io/npm/v/typefuzz" alt="npm version" /></a>
-  <a href="https://github.com/JR-G/typefuzz/blob/main/LICENSE"><img src="https://img.shields.io/npm/l/typefuzz" alt="License" /></a>
+  <a href="https://github.com/JR-G/typefuzz/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License" /></a>
 </p>
 
-# typefuzz
+# TypeFuzz
 
 TypeScript-first fuzz/property testing utilities with test runner integrations.
 
