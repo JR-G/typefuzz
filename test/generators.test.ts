@@ -232,6 +232,17 @@ describe('generators', () => {
     expect(shrunk[shrunk.length - 1]).toBe(0n);
   });
 
+  it('gen.bigint handles ranges beyond Number.MAX_SAFE_INTEGER', () => {
+    const randomSource = createSeededRandomSource(7);
+    const big = 2n ** 128n;
+    const generator = gen.bigint(0n, big);
+    Array.from({ length: 50 }).forEach(() => {
+      const value = generator.generate(randomSource);
+      expect(value).toBeGreaterThanOrEqual(0n);
+      expect(value).toBeLessThanOrEqual(big);
+    });
+  });
+
   it('gen.bigint shrinks toward min when 0 is out of range', () => {
     const generator = gen.bigint(10n, 50n);
     const shrunk = Array.from(generator.shrink(40n));

@@ -337,12 +337,8 @@ export const gen = {
     if (min > max) {
       throw new RangeError('bigint range must have min <= max');
     }
-    const range = max - min;
     return createArbitrary(
-      (randomSource) => {
-        const fraction = BigInt(Math.floor(randomSource() * Number(range + 1n)));
-        return min + fraction;
-      },
+      (randomSource) => randomBigInt(randomSource, min, max),
       (value) => shrinkBigInt(value, min, max)
     );
   },
@@ -543,6 +539,21 @@ export const gen = {
     );
   }
 };
+
+function randomBigInt(randomSource: () => number, min: bigint, max: bigint): bigint {
+  const range = max - min;
+  if (range <= BigInt(Number.MAX_SAFE_INTEGER)) {
+    return min + BigInt(Math.floor(randomSource() * Number(range + 1n)));
+  }
+  const bits = range.toString(2).length;
+  const chunks = Math.ceil(bits / 32);
+  let result = 0n;
+  for (let i = 0; i < chunks; i++) {
+    const chunk = BigInt(Math.floor(randomSource() * 0x100000000));
+    result = (result << 32n) | chunk;
+  }
+  return min + (result % (range + 1n));
+}
 
 function normalizeStringOptions(lengthOrOptions: number | StringOptions): { length: number; chars: string } {
   if (typeof lengthOrOptions === 'number') {
