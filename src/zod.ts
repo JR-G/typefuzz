@@ -193,15 +193,15 @@ function discriminatedUnionArbitrary(schema: z.ZodDiscriminatedUnion<string, z.Z
   return gen.oneOf(...options);
 }
 
-function mapArbitrary(schema: z.ZodMap<z.ZodTypeAny, z.ZodTypeAny>): Arbitrary<Map<string, unknown>> {
+function mapArbitrary(schema: z.ZodMap<z.ZodTypeAny, z.ZodTypeAny>): Arbitrary<Map<unknown, unknown>> {
   const keyArbitrary = buildArbitrary(schema.keySchema);
   const valueArbitrary = buildArbitrary(schema.valueSchema);
   return gen.map(
     gen.dictionary(
-      gen.map(keyArbitrary, (value) => String(value)),
+      gen.map(keyArbitrary, (value) => JSON.stringify(value)),
       valueArbitrary
     ),
-    (record) => new Map(Object.entries(record))
+    (record) => new Map(Object.entries(record).map(([k, v]) => [JSON.parse(k), v]))
   );
 }
 

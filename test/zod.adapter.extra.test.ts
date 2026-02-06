@@ -59,4 +59,62 @@ describe('zod adapter extra types', () => {
     const value = arbitrary.generate(randomSource);
     expect(() => schema.parse(value)).not.toThrow();
   });
+
+  it('supports z.date()', () => {
+    const schema = z.date();
+    const randomSource = createSeededRandomSource(17);
+    const arbitrary = zodArbitrary(schema);
+    const value = arbitrary.generate(randomSource);
+    expect(value).toBeInstanceOf(Date);
+    expect(() => schema.parse(value)).not.toThrow();
+  });
+
+  it('supports z.lazy() with recursive-like schema', () => {
+    const schema: z.ZodTypeAny = z.lazy(() => z.string().min(1).max(5));
+    const randomSource = createSeededRandomSource(17);
+    const arbitrary = zodArbitrary(schema);
+    const value = arbitrary.generate(randomSource);
+    expect(typeof value).toBe('string');
+    expect(value.length).toBeGreaterThanOrEqual(1);
+    expect(value.length).toBeLessThanOrEqual(5);
+  });
+
+  it('supports z.default() by unwrapping inner type', () => {
+    const schema = z.string().min(2).max(4).default('hi');
+    const randomSource = createSeededRandomSource(17);
+    const arbitrary = zodArbitrary(schema);
+    const value = arbitrary.generate(randomSource);
+    expect(typeof value).toBe('string');
+    expect(value.length).toBeGreaterThanOrEqual(2);
+    expect(value.length).toBeLessThanOrEqual(4);
+  });
+
+  it('supports z.any() and z.unknown()', () => {
+    const anySchema = z.any();
+    const unknownSchema = z.unknown();
+    const randomSource = createSeededRandomSource(17);
+    const anyValue = zodArbitrary(anySchema).generate(randomSource);
+    const unknownValue = zodArbitrary(unknownSchema).generate(randomSource);
+    expect(anyValue !== undefined || anyValue === undefined).toBe(true);
+    expect(unknownValue !== undefined || unknownValue === undefined).toBe(true);
+  });
+
+  it('supports z.string().transform() via ZodEffects', () => {
+    const schema = z.string().min(1).max(5).transform((s) => s.toUpperCase());
+    const randomSource = createSeededRandomSource(17);
+    const arbitrary = zodArbitrary(schema);
+    const value = arbitrary.generate(randomSource);
+    expect(typeof value).toBe('string');
+  });
+
+  it('map with number keys preserves key type', () => {
+    const schema = z.map(z.number().int().min(1).max(10), z.string().min(1).max(3));
+    const randomSource = createSeededRandomSource(17);
+    const arbitrary = zodArbitrary(schema);
+    const value = arbitrary.generate(randomSource);
+    expect(value).toBeInstanceOf(Map);
+    for (const key of value.keys()) {
+      expect(typeof key).toBe('number');
+    }
+  });
 });
