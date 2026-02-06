@@ -7,6 +7,9 @@ import {
   type PropertyConfig
 } from './core.js';
 
+/**
+ * Detailed information about a failing property run.
+ */
 export interface PropertyFailure<T> {
   seed: number;
   runs: number;
@@ -16,6 +19,9 @@ export interface PropertyFailure<T> {
   error?: unknown;
 }
 
+/**
+ * Result of a property run: either a pass or a failure with details.
+ */
 export type PropertyResult<T> =
   | { ok: true }
   | { ok: false; failure: PropertyFailure<T> };

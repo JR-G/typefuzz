@@ -3,9 +3,15 @@ import { randomInt, replaceAt, shrinkLengths, shrinkString } from './shrink-util
 
 type GenShape = Record<string, Arbitrary<unknown> | Gen<unknown>>;
 
-type CharsetName = 'alphanumeric' | 'alpha' | 'hex' | 'numeric' | 'ascii';
+/**
+ * Named character set for string generation.
+ */
+export type CharsetName = 'alphanumeric' | 'alpha' | 'hex' | 'numeric' | 'ascii';
 
-interface StringOptions {
+/**
+ * Options for {@link gen.string}.
+ */
+export interface StringOptions {
   length?: number;
   charset?: CharsetName;
   chars?: string;
