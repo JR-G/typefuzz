@@ -199,7 +199,8 @@ function mapArbitrary(schema: z.ZodMap<z.ZodTypeAny, z.ZodTypeAny>): Arbitrary<M
   const entryArbitrary = gen.tuple(keyArbitrary, valueArbitrary);
   return gen.map(
     gen.array(entryArbitrary, { minLength: 0, maxLength: 3 }),
-    (entries) => new Map(entries as Array<[unknown, unknown]>)
+    (entries) => new Map(entries as Array<[unknown, unknown]>),
+    (map) => Array.from(map.entries()) as Array<[unknown, unknown]>
   );
 }
 

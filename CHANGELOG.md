@@ -5,10 +5,10 @@
 Initial release.
 
 - Seeded xorshift32 PRNG with per-iteration RNG forking
-- 25+ built-in generators: int, float, bool, string, uuid, email, date,
-  array (fixed and variable length), uniqueArray, set, record, dictionary,
-  object, tuple, oneOf, weightedOneOf, frequency, constantFrom, constant,
-  optional, map, filter
+- 25+ built-in generators: int, float, bigint, bool, string (with charset
+  support), uuid, email, date, array (fixed and variable length), uniqueArray,
+  set, record, dictionary, object, tuple, oneOf, weightedOneOf, frequency,
+  constantFrom, constant, optional, map, filter
 - Shrinking for all generator types with format-preserving shrinkers for
   uuid and email
 - Sync and async property runners with configurable run count and shrink budget
