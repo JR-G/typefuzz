@@ -1,6 +1,7 @@
 export * from './generators.js';
 export * from './core.js';
 export * from './property.js';
+export * from './model.js';
 
 import {
   fuzzAssert,
@@ -13,12 +14,26 @@ import {
   runReplayAsync,
   formatSerializedFailure,
   serializeFailure,
+  generateSamples,
   type PropertyFailure,
   type PropertyResult,
   type SerializedFailure
 } from './property.js';
 import type { Arbitrary, Gen, PropertyConfig } from './core.js';
 import type { ReplayConfig } from './property.js';
+import {
+  runModel,
+  runModelAsync,
+  assertModel,
+  assertModelAsync,
+  serializeModelFailure,
+  type ModelSpec,
+  type AsyncModelSpec,
+  type ModelConfig,
+  type ModelResult,
+  type ModelFailure,
+  type SerializedModelFailure
+} from './model.js';
 
 /**
  * Ergonomic entrypoint for property testing.
@@ -53,6 +68,24 @@ export const fuzz = {
   },
   formatSerializedFailure<T>(failure: SerializedFailure<T>): string {
     return formatSerializedFailure(failure);
+  },
+  samples<T>(arbitraryInput: Arbitrary<T> | Gen<T>, count: number, config?: Parameters<typeof generateSamples>[2]): T[] {
+    return generateSamples(arbitraryInput, count, config);
+  },
+  model<Model, System>(spec: ModelSpec<Model, System>, config: ModelConfig = {}): ModelResult {
+    return runModel(spec, config);
+  },
+  modelAsync<Model, System>(spec: AsyncModelSpec<Model, System>, config: ModelConfig = {}): Promise<ModelResult> {
+    return runModelAsync(spec, config);
+  },
+  assertModel<Model, System>(spec: ModelSpec<Model, System>, config: ModelConfig = {}): void {
+    return assertModel(spec, config);
+  },
+  assertModelAsync<Model, System>(spec: AsyncModelSpec<Model, System>, config: ModelConfig = {}): Promise<void> {
+    return assertModelAsync(spec, config);
+  },
+  serializeModelFailure(failure: ModelFailure): SerializedModelFailure {
+    return serializeModelFailure(failure);
   }
 };
 

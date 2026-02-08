@@ -112,7 +112,7 @@ export function normalizeArbitrary<T>(arbitraryInput: Arbitrary<T> | Gen<T>): Ar
   return arbitraryInput;
 }
 
-function normalizeSeed(seed: Seed | undefined): Seed {
+export function normalizeSeed(seed: Seed | undefined): Seed {
   if (typeof seed !== 'number' || !Number.isFinite(seed)) {
     return Date.now() >>> 0;
   }

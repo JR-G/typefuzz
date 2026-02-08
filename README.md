@@ -86,6 +86,7 @@ Predefined charsets: `'alphanumeric'`, `'alpha'`, `'hex'`, `'numeric'`, `'ascii'
 - `fuzz.property(arbitrary, predicate, config?)` run and return a result
 - `fuzz.replay(arbitrary, predicate, { seed, runs })` replay a property
 - `fuzz.assertReplay(arbitrary, predicate, { seed, runs })` replay and throw on failure
+- `fuzz.samples(arbitrary, count, config?)` generate N values from an arbitrary
 - `fuzz.serializeFailure(failure)` JSON-friendly failure payload
 - `fuzz.formatSerializedFailure(payload)` human-readable failure string
 
@@ -128,6 +129,30 @@ fuzzItAsync('async property', gen.int(1, 100), async (n) => {
 }, { runs: 50 });
 ```
 
+### Parameterised tests with `.each`
+
+Generate N values and register each as a separate test case, similar to `it.each`:
+
+```ts
+import { fuzzIt } from 'typefuzz/vitest';
+import { gen } from 'typefuzz';
+
+fuzzIt.each(gen.int(1, 100), 10, { seed: 42 })('is positive: %s', (n) => {
+  expect(n).toBeGreaterThan(0);
+});
+```
+
+`%s` in the test name is replaced with a compact JSON representation of the value. An async variant is also available:
+
+```ts
+fuzzIt.eachAsync(gen.string(8), 5)('validates: %s', async (s) => {
+  const result = await validate(s);
+  expect(result.ok).toBe(true);
+});
+```
+
+No shrinking is performed — each case is a standalone test.
+
 ### Jest
 
 ```ts
@@ -138,6 +163,109 @@ fuzzIt('reverse is involutive', gen.array(gen.int(0, 10), 5), (values) => {
   const doubleReversed = [...values].reverse().reverse();
   return JSON.stringify(doubleReversed) === JSON.stringify(values);
 }, { runs: 200, seed: 123 });
+```
+
+The `.each` and `.eachAsync` methods are available on the Jest adapter too.
+
+## Model-based testing
+
+Model-based testing verifies a stateful system against a simplified model. Typefuzz generates random command sequences, executes them against both the system and the model, and checks that the system matches the model after each step.
+
+```ts
+import { fuzz, gen } from 'typefuzz';
+
+class Counter {
+  value = 0;
+  add(n: number) { this.value += n; }
+  reset() { this.value = 0; }
+}
+
+const result = fuzz.model({
+  state: () => ({ count: 0 }),
+  setup: () => new Counter(),
+  commands: [
+    {
+      name: 'increment',
+      arbitrary: gen.int(1, 5),
+      run: (counter, model, n) => { counter.add(n); model.count += n; },
+      check: (counter, model) => counter.value === model.count
+    },
+    {
+      name: 'reset',
+      run: (counter, model) => { counter.reset(); model.count = 0; },
+      check: (counter, model) => counter.value === 0,
+      precondition: (model) => model.count > 0
+    }
+  ]
+}, { runs: 100, maxCommands: 20 });
+```
+
+### How it works
+
+Each iteration creates a fresh model (via `state()`) and a fresh system (via `setup()`), then runs a random sequence of commands. For each step:
+
+1. Filter commands by `precondition` (if defined)
+2. Pick a random eligible command
+3. Generate a parameter (if the command has an `arbitrary`)
+4. Call `run(system, model, param)` to apply side effects
+5. Call `check(system, model, param)` — if it returns `false` or throws, the sequence fails
+
+On failure, the sequence is shrunk using delta-debugging chunk removal (tries removing contiguous chunks of decreasing size) followed by element-wise parameter shrinking, looping until convergence.
+
+### Commands
+
+A command has:
+
+- `name` — used in failure output
+- `arbitrary?` — generator for the command's parameter (omit for parameterless commands)
+- `precondition?` — guard; command is only eligible when this returns `true`
+- `run(system, model, param)` — apply the operation to both system and model
+- `check(system, model, param)` — return `false` to signal failure, or use expect-style assertions (throw on mismatch). Returning `true` or `void` counts as passing.
+
+### Configuration
+
+- `runs` — number of iterations (default 100)
+- `maxCommands` — max commands per sequence (default 20)
+- `maxShrinks` — shrink budget (default 1000)
+- `seed` — RNG seed for reproducibility
+
+### Teardown
+
+Provide an optional `teardown(system)` to clean up after each iteration. Called in a `finally` block so it runs even when the sequence fails or during shrink replays.
+
+### Failure output
+
+```
+model-based test failed after 37/100 runs
+seed: 42
+shrinks: 15
+command sequence:
+  1. increment(1)
+  2. buggyReset  <-- check failed
+replay: fuzz.model(spec, { seed: 42, runs: 100 })
+```
+
+### API
+
+- `fuzz.model(spec, config?)` — run and return `ModelResult`
+- `fuzz.modelAsync(spec, config?)` — async variant
+- `fuzz.assertModel(spec, config?)` — run and throw on failure
+- `fuzz.assertModelAsync(spec, config?)` — async variant
+- `fuzz.serializeModelFailure(failure)` — JSON-friendly failure payload
+
+### Test runner integration
+
+```ts
+import { fuzzIt } from 'typefuzz/vitest';
+
+fuzzIt.model('counter behaves correctly', {
+  state: () => ({ count: 0 }),
+  setup: () => new Counter(),
+  commands: [/* ... */]
+}, { runs: 100 });
+
+// Async variant
+fuzzIt.modelAsync('async counter', { /* ... */ });
 ```
 
 ## Zod adapter (optional)
@@ -184,6 +312,8 @@ const arb = zodArbitrary(schema);
 
 When a property fails, typefuzz attempts to shrink the counterexample by reducing sizes (arrays, records, sets) and moving numbers/dates toward smaller values. The final counterexample is the smallest failing case found within the shrink budget.
 
+For model-based tests, shrinking uses delta-debugging chunk removal to find the shortest failing command sequence, then shrinks individual parameter values. Both phases loop until no further improvement is found.
+
 ## Replay failures
 
 ```ts
@@ -214,6 +344,7 @@ if (!result.ok && result.failure) {
 - `src/vitest.ts` Vitest adapter
 - `src/jest.ts` Jest adapter
 - `src/generators.ts` built-in generators
+- `src/model.ts` model-based testing
 - `src/zod.ts` Zod schema adapter
 
 ## FAQ
@@ -237,6 +368,7 @@ No. The Zod adapter is optional; core generators and fuzz helpers do not depend 
 
 - `runs`: 100
 - `maxShrinks`: 1000
+- `maxCommands`: 20 (model-based testing)
 - `gen.string(length)`: 8
 - `gen.array(item, length)`: 5
 

@@ -1,6 +1,6 @@
 {
   "name": "typefuzz",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": "JR-G",
   "type": "module",
   "description": "TypeScript fuzz/property testing utilities with test runner integrations",

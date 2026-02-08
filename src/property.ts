@@ -4,7 +4,8 @@ import {
   normalizeArbitrary,
   type Arbitrary,
   type Gen,
-  type PropertyConfig
+  type PropertyConfig,
+  type RunConfig
 } from './core.js';
 
 /**
@@ -244,6 +245,43 @@ export async function fuzzReplayAsync<T>(
   config: ReplayConfig
 ): Promise<void> {
   await fuzzAssertAsync(arbitraryInput, predicate, config);
+}
+
+/**
+ * Configuration for `.each` registration.
+ */
+export type EachConfig = RunConfig;
+
+/**
+ * Generate N sample values from an arbitrary using forked RNG per sample.
+ */
+export function generateSamples<T>(arbitraryInput: Arbitrary<T> | Gen<T>, count: number, config: RunConfig = {}): T[] {
+  const { randomSource } = createRunState(config);
+  const arbitrary = normalizeArbitrary(arbitraryInput);
+  const samples: T[] = [];
+  for (let i = 0; i < count; i++) {
+    const iterationSource = forkRandomSource(randomSource);
+    samples.push(arbitrary.generate(iterationSource));
+  }
+  return samples;
+}
+
+/**
+ * Replace `%s` in a template with a compact JSON representation of the value,
+ * truncated at 80 characters.
+ */
+export function formatTestName(template: string, value: unknown): string {
+  const json = compactJson(value);
+  const truncated = json.length > 80 ? json.slice(0, 77) + '...' : json;
+  return template.replace('%s', truncated);
+}
+
+function compactJson(value: unknown): string {
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
 }
 
 function normalizeMaxShrinks(maxShrinks: number | undefined): number {
