@@ -54,7 +54,7 @@ describe('zod adapter', () => {
 
   describe('composite types', () => {
     it('supports record schemas', () => {
-      const schema = z.record(z.number().int().min(1).max(3));
+      const schema = z.record(z.string(), z.number().int().min(1).max(3));
       const value = generateOne(zodArbitrary(schema), 17);
       expect(() => schema.parse(value)).not.toThrow();
     });
@@ -200,7 +200,7 @@ describe('zod adapter', () => {
         id: z.string().min(2).max(6),
         count: z.number().int().min(1).max(10),
         flags: z.array(z.boolean()).min(0).max(3),
-        meta: z.record(z.string().min(1).max(3)).optional(),
+        meta: z.record(z.string(), z.string().min(1).max(3)).optional(),
         state: z.nativeEnum({ Active: 'active', Pending: 'pending' } as const)
       });
 
