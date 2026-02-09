@@ -21,91 +21,52 @@ export function zodArbitrary<T extends z.ZodTypeAny>(schema: T): Arbitrary<z.inf
   return buildArbitrary(schema) as Arbitrary<z.infer<T>>;
 }
 
-function asAny(schema: unknown): z.ZodTypeAny {
+/**
+ * Zod 4 has two type hierarchies: `$ZodType` (core) and `ZodType` (classic).
+ * Inner schemas returned by `.unwrap()`, `.element`, `.keyType`, etc. are
+ * `$ZodType` which TypeScript rejects as `ZodType`. Both refer to the same
+ * runtime objects, so the cast is safe.
+ */
+function toZodType(schema: unknown): z.ZodTypeAny {
   return schema as z.ZodTypeAny;
 }
 
-function buildArbitrary(schema: z.ZodTypeAny): Arbitrary<unknown> {
-  if (schema instanceof z.ZodString) {
-    return stringArbitrary(schema) as Arbitrary<unknown>;
-  }
-  if (schema instanceof z.ZodNumber) {
-    return numberArbitrary(schema) as Arbitrary<unknown>;
-  }
-  if (schema instanceof z.ZodBoolean) {
-    return gen.bool() as Arbitrary<unknown>;
-  }
-  if (schema instanceof z.ZodArray) {
-    return arrayArbitrary(schema) as Arbitrary<unknown>;
-  }
-  if (schema instanceof z.ZodObject) {
-    return objectArbitrary(schema) as Arbitrary<unknown>;
-  }
-  if (schema instanceof z.ZodRecord) {
-    return recordArbitrary(schema) as Arbitrary<unknown>;
-  }
-  if (schema instanceof z.ZodTuple) {
-    return tupleArbitrary(schema) as Arbitrary<unknown>;
-  }
-  if (schema instanceof z.ZodMap) {
-    return mapArbitrary(schema) as Arbitrary<unknown>;
-  }
-  if (schema instanceof z.ZodSet) {
-    return setArbitrary(schema) as Arbitrary<unknown>;
-  }
-  if (schema instanceof z.ZodDiscriminatedUnion) {
-    return discriminatedUnionArbitrary(schema) as Arbitrary<unknown>;
-  }
-  if (schema instanceof z.ZodOptional) {
-    return gen.optional(buildArbitrary(asAny(schema.unwrap()))) as Arbitrary<unknown>;
-  }
-  if (schema instanceof z.ZodNullable) {
-    return gen.oneOf(literalArbitrary(null) as Arbitrary<unknown>, buildArbitrary(asAny(schema.unwrap()))) as Arbitrary<unknown>;
-  }
-  if (schema instanceof z.ZodLiteral) {
-    return literalArbitrary(schema.value) as Arbitrary<unknown>;
-  }
-  if (schema instanceof z.ZodEnum) {
-    return enumArbitrary(schema) as Arbitrary<unknown>;
-  }
-  if (schema instanceof z.ZodUnion) {
-    return unionArbitrary(schema) as Arbitrary<unknown>;
-  }
-  if (schema instanceof z.ZodBigInt) {
-    return bigintArbitrary(schema) as Arbitrary<unknown>;
-  }
-  if (schema instanceof z.ZodDate) {
-    return gen.date() as Arbitrary<unknown>;
-  }
-  if (schema instanceof z.ZodUndefined) {
-    return literalArbitrary(undefined) as Arbitrary<unknown>;
-  }
-  if (schema instanceof z.ZodVoid) {
-    return literalArbitrary(undefined) as Arbitrary<unknown>;
-  }
-  if (schema instanceof z.ZodAny || schema instanceof z.ZodUnknown) {
-    return gen.oneOf(
-      gen.int() as Arbitrary<unknown>,
-      gen.string() as Arbitrary<unknown>,
-      gen.bool() as Arbitrary<unknown>,
-      literalArbitrary(null) as Arbitrary<unknown>
-    );
-  }
-  if (schema instanceof z.ZodDefault) {
-    return buildArbitrary(asAny(schema.unwrap()));
-  }
-  if (schema instanceof z.ZodLazy) {
-    return createArbitrary(
-      (randomSource) => buildArbitrary(asAny(schema.unwrap())).generate(randomSource),
-      (value) => buildArbitrary(asAny(schema.unwrap())).shrink(value)
-    ) as Arbitrary<unknown>;
-  }
-  if (schema instanceof z.ZodPipe) {
-    return buildArbitrary(asAny(schema.in));
-  }
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function buildArbitrary(schema: z.ZodTypeAny): Arbitrary<any> {
+  if (schema instanceof z.ZodString) return stringArbitrary(schema);
+  if (schema instanceof z.ZodNumber) return numberArbitrary(schema);
+  if (schema instanceof z.ZodBoolean) return gen.bool();
+  if (schema instanceof z.ZodBigInt) return bigintArbitrary(schema);
+  if (schema instanceof z.ZodDate) return gen.date();
+  if (schema instanceof z.ZodArray) return arrayArbitrary(schema);
+  if (schema instanceof z.ZodObject) return objectArbitrary(schema);
+  if (schema instanceof z.ZodRecord) return recordArbitrary(schema);
+  if (schema instanceof z.ZodTuple) return tupleArbitrary(schema);
+  if (schema instanceof z.ZodMap) return mapArbitrary(schema);
+  if (schema instanceof z.ZodSet) return setArbitrary(schema);
+  if (schema instanceof z.ZodEnum) return enumArbitrary(schema);
+  if (schema instanceof z.ZodUnion) return unionArbitrary(schema);
+  if (schema instanceof z.ZodDiscriminatedUnion) return discriminatedUnionArbitrary(schema);
+  if (schema instanceof z.ZodLiteral) return literalArbitrary(schema.value);
+  if (schema instanceof z.ZodOptional) return gen.optional(buildArbitrary(toZodType(schema.unwrap())));
+  if (schema instanceof z.ZodNullable) return gen.oneOf(literalArbitrary(null), buildArbitrary(toZodType(schema.unwrap())));
+  if (schema instanceof z.ZodDefault) return buildArbitrary(toZodType(schema.unwrap()));
+  if (schema instanceof z.ZodLazy) return lazyArbitrary(schema);
+  if (schema instanceof z.ZodPipe) return buildArbitrary(toZodType(schema.in));
+  if (schema instanceof z.ZodUndefined || schema instanceof z.ZodVoid) return literalArbitrary(undefined);
+  if (schema instanceof z.ZodAny || schema instanceof z.ZodUnknown) return anyArbitrary();
 
-  const schemaType = (schema as { _zod?: { def?: { type?: string } } })._zod?.def?.type ?? 'unknown';
-  throw new TypeError(`Unsupported Zod schema type: ${schemaType}`);
+  const type = defOf(schema).type ?? 'unknown';
+  throw new TypeError(`Unsupported Zod schema type: ${type}`);
+}
+
+function defOf(schema: z.ZodTypeAny): Record<string, unknown> {
+  return (schema as unknown as { _zod: { def: Record<string, unknown> } })._zod.def;
+}
+
+function checksOf(schema: z.ZodTypeAny): Array<Record<string, unknown>> {
+  const def = defOf(schema);
+  return ((def.checks ?? []) as Array<{ _zod: { def: Record<string, unknown> } }>).map((c) => c._zod.def);
 }
 
 function stringArbitrary(schema: z.ZodString): Arbitrary<string> {
@@ -126,18 +87,53 @@ function stringArbitrary(schema: z.ZodString): Arbitrary<string> {
 }
 
 function numberArbitrary(schema: z.ZodNumber): Arbitrary<number> {
-  const { min, max, integer } = numberBounds(schema);
+  const integer = schema.isInt;
+  const { min, max } = numericBounds(schema, integer);
   const defaultRange = integer ? DEFAULT_INT_RANGE : DEFAULT_FLOAT_RANGE;
-  const rangeMin = min ?? Math.min(defaultRange.min, max ?? defaultRange.min);
-  const rangeMax = max ?? Math.max(defaultRange.max, rangeMin);
+  const rangeMin = (min as number | undefined) ?? Math.min(defaultRange.min, (max as number | undefined) ?? defaultRange.min);
+  const rangeMax = (max as number | undefined) ?? Math.max(defaultRange.max, rangeMin);
   return integer ? gen.int(rangeMin, rangeMax) : gen.float(rangeMin, rangeMax);
+}
+
+function bigintArbitrary(schema: z.ZodBigInt): Arbitrary<bigint> {
+  const { min, max } = numericBounds(schema, true);
+  const lo = min as bigint | undefined;
+  const hi = max as bigint | undefined;
+  const rangeMin = lo ?? (hi !== undefined && hi < 0n ? hi : 0n);
+  const rangeMax = hi ?? (lo !== undefined && lo > 100n ? lo + 100n : 100n);
+  return gen.bigint(rangeMin, rangeMax);
+}
+
+function numericBounds(schema: z.ZodTypeAny, integer: boolean): { min?: number | bigint; max?: number | bigint } {
+  let min: number | bigint | undefined;
+  let max: number | bigint | undefined;
+  for (const check of checksOf(schema)) {
+    if (check.check === 'greater_than') {
+      const value = check.value as number | bigint;
+      const inclusive = check.inclusive as boolean;
+      min = inclusive ? value : adjust(value, integer, 1);
+    }
+    if (check.check === 'less_than') {
+      const value = check.value as number | bigint;
+      const inclusive = check.inclusive as boolean;
+      max = inclusive ? value : adjust(value, integer, -1);
+    }
+  }
+  return { min, max };
+}
+
+function adjust(value: number | bigint, integer: boolean, direction: 1 | -1): number | bigint {
+  if (typeof value === 'bigint') return value + BigInt(direction);
+  if (integer) return value + direction;
+  const step = Math.max(Math.abs(value as number) * Number.EPSILON, Number.MIN_VALUE);
+  return (value as number) + direction * step;
 }
 
 function arrayArbitrary(schema: z.ZodArray): Arbitrary<unknown[]> {
   const { min, max } = arrayBounds(schema);
   const lengthMin = min ?? Math.min(DEFAULT_ARRAY_LENGTH, max ?? DEFAULT_ARRAY_LENGTH);
   const lengthMax = max ?? Math.max(lengthMin, DEFAULT_ARRAY_LENGTH);
-  const itemArbitrary = buildArbitrary(asAny(schema.element));
+  const itemArbitrary = buildArbitrary(toZodType(schema.element));
 
   if (lengthMin === lengthMax) {
     return gen.array(itemArbitrary, lengthMin);
@@ -152,10 +148,21 @@ function arrayArbitrary(schema: z.ZodArray): Arbitrary<unknown[]> {
   );
 }
 
+function arrayBounds(schema: z.ZodArray): { min?: number; max?: number } {
+  let min: number | undefined;
+  let max: number | undefined;
+  for (const check of checksOf(schema)) {
+    if (check.check === 'min_length') min = check.minimum as number;
+    if (check.check === 'max_length') max = check.maximum as number;
+    if (check.check === 'length_equals') { min = check.expected as number; max = min; }
+  }
+  return { min, max };
+}
+
 function objectArbitrary(schema: z.ZodObject): Arbitrary<Record<string, unknown>> {
   const shape = schema.shape;
   const mappedShape = Object.fromEntries(
-    Object.entries(shape).map(([key, value]) => [key, buildArbitrary(value as z.ZodTypeAny)])
+    Object.entries(shape).map(([key, value]) => [key, buildArbitrary(toZodType(value))])
   ) as Record<string, Arbitrary<unknown> | Gen<unknown>>;
   return gen.object(mappedShape) as Arbitrary<Record<string, unknown>>;
 }
@@ -173,28 +180,23 @@ function unionArbitrary(schema: z.ZodUnion): Arbitrary<unknown> {
   return gen.oneOf(...options);
 }
 
-function recordArbitrary(schema: z.ZodRecord): Arbitrary<Record<string, unknown>> {
-  const valueSchema = schema.valueType ?? schema._zod.def.valueType;
-  if (!valueSchema) {
-    throw new TypeError('ZodRecord must have a value type — use z.record(z.string(), valueType)');
-  }
-  const valueArbitrary = buildArbitrary(asAny(valueSchema));
-  return gen.record(valueArbitrary);
-}
-
-function tupleArbitrary(schema: z.ZodTuple): Arbitrary<unknown[]> {
-  const items = (schema._zod.def.items as z.ZodTypeAny[]).map((item) => buildArbitrary(item));
-  return gen.tuple(...items);
-}
-
 function discriminatedUnionArbitrary(schema: z.ZodDiscriminatedUnion): Arbitrary<unknown> {
   const options = (schema.options as z.ZodTypeAny[]).map((option) => buildArbitrary(option));
   return gen.oneOf(...options);
 }
 
+function recordArbitrary(schema: z.ZodRecord): Arbitrary<Record<string, unknown>> {
+  return gen.record(buildArbitrary(toZodType(defOf(schema).valueType)));
+}
+
+function tupleArbitrary(schema: z.ZodTuple): Arbitrary<unknown[]> {
+  const items = (defOf(schema).items as z.ZodTypeAny[]).map((item) => buildArbitrary(toZodType(item)));
+  return gen.tuple(...items);
+}
+
 function mapArbitrary(schema: z.ZodMap): Arbitrary<Map<unknown, unknown>> {
-  const keyArbitrary = buildArbitrary(asAny(schema.keyType));
-  const valueArbitrary = buildArbitrary(asAny(schema.valueType));
+  const keyArbitrary = buildArbitrary(toZodType(defOf(schema).keyType));
+  const valueArbitrary = buildArbitrary(toZodType(defOf(schema).valueType));
   const entryArbitrary = gen.tuple(keyArbitrary, valueArbitrary);
   return gen.map(
     gen.array(entryArbitrary, { minLength: 0, maxLength: 3 }),
@@ -204,90 +206,27 @@ function mapArbitrary(schema: z.ZodMap): Arbitrary<Map<unknown, unknown>> {
 }
 
 function setArbitrary(schema: z.ZodSet): Arbitrary<Set<unknown>> {
-  const valueArbitrary = buildArbitrary(asAny(schema._zod.def.valueType));
-  return gen.set(valueArbitrary);
+  return gen.set(buildArbitrary(toZodType(defOf(schema).valueType)));
+}
+
+function lazyArbitrary(schema: z.ZodLazy): Arbitrary<unknown> {
+  return createArbitrary(
+    (randomSource) => buildArbitrary(toZodType(schema.unwrap())).generate(randomSource),
+    (value) => buildArbitrary(toZodType(schema.unwrap())).shrink(value)
+  );
+}
+
+function anyArbitrary(): Arbitrary<unknown> {
+  return gen.oneOf(
+    gen.int() as Arbitrary<unknown>,
+    gen.string() as Arbitrary<unknown>,
+    gen.bool() as Arbitrary<unknown>,
+    literalArbitrary(null) as Arbitrary<unknown>
+  );
 }
 
 function literalArbitrary<T>(value: T): Arbitrary<T> {
   return createArbitrary(() => value, () => []);
-}
-
-function bigintArbitrary(schema: z.ZodBigInt): Arbitrary<bigint> {
-  const { min, max } = bigintBounds(schema);
-  const rangeMin = min ?? (max !== undefined && max < 0n ? max : 0n);
-  const rangeMax = max ?? (min !== undefined && min > 100n ? min + 100n : 100n);
-  return gen.bigint(rangeMin, rangeMax);
-}
-
-interface NumericCheck {
-  _zod: {
-    def: {
-      check: string;
-      value?: number | bigint;
-      inclusive?: boolean;
-    };
-  };
-}
-
-interface ArrayCheck {
-  _zod: {
-    def: {
-      check: string;
-      minimum?: number;
-      maximum?: number;
-      expected?: number;
-    };
-  };
-}
-
-function numberBounds(schema: z.ZodNumber): { min?: number; max?: number; integer: boolean } {
-  const integer = schema.isInt;
-  const checks = (schema._zod.def.checks ?? []) as NumericCheck[];
-  return checks.reduce<{ min?: number; max?: number; integer: boolean }>((state, check) => {
-    const def = check._zod.def;
-    if (def.check === 'greater_than' && typeof def.value === 'number') {
-      const bound = def.inclusive ? def.value : integer ? def.value + 1 : def.value + Number.EPSILON;
-      return { ...state, min: bound };
-    }
-    if (def.check === 'less_than' && typeof def.value === 'number') {
-      const bound = def.inclusive ? def.value : integer ? def.value - 1 : def.value - Number.EPSILON;
-      return { ...state, max: bound };
-    }
-    return state;
-  }, { integer });
-}
-
-function bigintBounds(schema: z.ZodBigInt): { min?: bigint; max?: bigint } {
-  const checks = (schema._zod.def.checks ?? []) as NumericCheck[];
-  return checks.reduce<{ min?: bigint; max?: bigint }>((state, check) => {
-    const def = check._zod.def;
-    if (def.check === 'greater_than' && typeof def.value === 'bigint') {
-      const bound = def.inclusive ? def.value : def.value + 1n;
-      return { ...state, min: bound };
-    }
-    if (def.check === 'less_than' && typeof def.value === 'bigint') {
-      const bound = def.inclusive ? def.value : def.value - 1n;
-      return { ...state, max: bound };
-    }
-    return state;
-  }, {});
-}
-
-function arrayBounds(schema: z.ZodArray): { min?: number; max?: number } {
-  const checks = (schema._zod.def.checks ?? []) as ArrayCheck[];
-  return checks.reduce<{ min?: number; max?: number }>((state, check) => {
-    const def = check._zod.def;
-    if (def.check === 'min_length' && def.minimum !== undefined) {
-      return { ...state, min: def.minimum };
-    }
-    if (def.check === 'max_length' && def.maximum !== undefined) {
-      return { ...state, max: def.maximum };
-    }
-    if (def.check === 'length_equals' && def.expected !== undefined) {
-      return { min: def.expected, max: def.expected };
-    }
-    return state;
-  }, {});
 }
 
 function* shrinkArray(value: unknown[], itemArbitrary: Arbitrary<unknown>): Iterable<unknown[]> {
