@@ -9,6 +9,10 @@ if [[ "$bump" != "patch" && "$bump" != "minor" && "$bump" != "major" ]]; then
 fi
 
 current=$(node -p "require('./package.json').version")
+if [[ ! "$current" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  echo "Error: invalid version '$current' in package.json (expected major.minor.patch)"
+  exit 1
+fi
 IFS='.' read -r major minor patch <<< "$current"
 
 case "$bump" in
