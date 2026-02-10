@@ -22,6 +22,9 @@ case "$bump" in
 esac
 
 version="$major.$minor.$patch"
+branch="release/v$version"
+
+git checkout -b "$branch"
 
 node -e "
   const fs = require('fs');
@@ -32,7 +35,8 @@ node -e "
 
 git add package.json
 git commit -m "v$version"
-git tag "v$version"
-git push && git push origin "v$version"
+git push -u origin "$branch"
+gh pr create --title "v$version" --body "Bump version to $version" --auto --rebase
 
-echo "Released v$version"
+echo "Created release PR for v$version"
+echo "After merge, run: bun run release:tag $version"
