@@ -45,6 +45,7 @@
     "dev": "bunx tsc -p tsconfig.build.json --watch",
     "clean": "rm -rf dist",
     "lint": "bunx eslint .",
+    "typecheck": "bunx tsc --noEmit",
     "prepack": "bun run build",
     "test": "bunx vitest run",
     "release": "bash scripts/release.sh",
