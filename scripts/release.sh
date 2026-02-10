@@ -19,7 +19,12 @@ esac
 
 version="$major.$minor.$patch"
 
-sed -i '' "s/\"version\": \"$current\"/\"version\": \"$version\"/" package.json
+node -e "
+  const fs = require('fs');
+  const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+  pkg.version = '$version';
+  fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+"
 
 git add package.json
 git commit -m "v$version"
