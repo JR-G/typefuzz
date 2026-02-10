@@ -36,7 +36,11 @@ node -e "
 git add package.json
 git commit -m "v$version"
 git push -u origin "$branch"
-gh pr create --title "v$version" --body "Bump version to $version" --auto --rebase
+gh pr create --title "v$version" --body "Bump version to $version"
 
-echo "Created release PR for v$version"
-echo "After merge, run: bun run release:tag $version"
+echo ""
+echo "PR created for v$version"
+echo "Next steps:"
+echo "  1. Wait for CI + CodeRabbit to pass"
+echo "  2. Merge the PR on GitHub"
+echo "  3. Run: bun run release:tag"
