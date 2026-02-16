@@ -53,6 +53,8 @@ fuzzIt('sum is commutative', gen.tuple(gen.int(0, 10), gen.int(0, 10)), ([left, 
 - [FAQ](./docs/faq.md)
 - [AI Testing Playbook](./docs/ai-testing-playbook.md)
 - [AI Agent Compatibility](./docs/ai-agent-compatibility.md)
+- [Agent Instructions](./AGENTS.md)
+- [LLM Index](./llms.txt)
 
 ## Development
 
