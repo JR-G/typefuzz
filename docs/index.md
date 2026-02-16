@@ -6,6 +6,8 @@ Use this index as the starting point for deeper documentation.
 
 - [Getting Started](./getting-started.md)
 - [Test Runner Integrations](./test-runners.md)
+- [AI Testing Playbook](./ai-testing-playbook.md)
+- [AI Agent Compatibility](./ai-agent-compatibility.md)
 
 ## API reference guides
 

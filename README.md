@@ -51,6 +51,8 @@ fuzzIt('sum is commutative', gen.tuple(gen.int(0, 10), gen.int(0, 10)), ([left, 
 - [Zod Adapter](./docs/zod-adapter.md)
 - [Shrinking and Replay](./docs/shrinking-and-replay.md)
 - [FAQ](./docs/faq.md)
+- [AI Testing Playbook](./docs/ai-testing-playbook.md)
+- [AI Agent Compatibility](./docs/ai-agent-compatibility.md)
 
 ## Development
 
