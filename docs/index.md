@@ -20,5 +20,6 @@ Use this index as the starting point for deeper documentation.
 
 - [Shrinking and Replay](./shrinking-and-replay.md)
 - [FAQ](./faq.md)
+- [Releasing](./releasing.md)
 - [Agent Instructions](../AGENTS.md)
 - [LLM Index](../llms.txt)

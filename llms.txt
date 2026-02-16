@@ -14,6 +14,7 @@ TypeScript-first fuzz/property testing utilities with Vitest/Jest adapters.
 - Zod adapter: ./docs/zod-adapter.md
 - Shrinking and replay: ./docs/shrinking-and-replay.md
 - FAQ: ./docs/faq.md
+- Releasing: ./docs/releasing.md
 - Agent instructions: ./AGENTS.md
 
 ## Project commands
@@ -22,3 +23,5 @@ TypeScript-first fuzz/property testing utilities with Vitest/Jest adapters.
 - bun run lint
 - bun run typecheck
 - bun run test
+- bun run release patch|minor|major
+- bun run release:tag

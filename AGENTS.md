@@ -18,6 +18,13 @@ TypeFuzz is a TypeScript property-testing library with:
 - Typecheck: `bun run typecheck`
 - Tests: `bun run test`
 
+## Release workflow
+
+- Create release PR: `bun run release patch|minor|major`
+- After release PR merges to `main`, publish tag: `bun run release:tag`
+- The tag push triggers publish workflow.
+- Release details: `docs/releasing.md`
+
 ## Test authoring rules
 
 - Prefer properties over one-off fixed examples when behavior should hold broadly.
@@ -39,3 +46,4 @@ TypeFuzz is a TypeScript property-testing library with:
 - `docs/ai-testing-playbook.md`
 - `docs/core-api.md`
 - `docs/model-based-testing.md`
+- `docs/releasing.md`
