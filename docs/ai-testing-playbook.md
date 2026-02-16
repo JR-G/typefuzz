@@ -90,7 +90,7 @@ When a generated test fails:
 3. Fix behavior.
 4. Keep one deterministic regression test with explicit seed.
 
-## Heuristics for better generated tests
+## Heuristics for better-generated tests
 
 - Generate structured data with `gen.object`, `gen.record`, and `gen.tuple` instead of only primitive inputs.
 - Add edge-biased domains deliberately: small/large numbers, empty/non-empty containers, optional values.
