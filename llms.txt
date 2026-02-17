@@ -1,0 +1,27 @@
+# TypeFuzz
+
+TypeScript-first fuzz/property testing utilities with Vitest/Jest adapters.
+
+## Primary docs
+
+- README: ./README.md
+- Documentation index: ./docs/index.md
+- AI testing playbook: ./docs/ai-testing-playbook.md
+- Core API guide: ./docs/core-api.md
+- Generators guide: ./docs/generators.md
+- Test runner integrations: ./docs/test-runners.md
+- Model-based testing: ./docs/model-based-testing.md
+- Zod adapter: ./docs/zod-adapter.md
+- Shrinking and replay: ./docs/shrinking-and-replay.md
+- FAQ: ./docs/faq.md
+- Releasing: ./docs/releasing.md
+- Agent instructions: ./AGENTS.md
+
+## Project commands
+
+- bun install
+- bun run lint
+- bun run typecheck
+- bun run test
+- bun run release patch|minor|major
+- bun run release:tag
