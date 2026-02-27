@@ -56,13 +56,11 @@ If the property fails, TypeFuzz shrinks the input to the smallest counterexample
 
 | | TypeFuzz | fast-check |
 | --- | --- | --- |
-| Test runner integration | `fuzzIt` drops into Vitest/Jest | Requires `fc.assert` wrapper inside `it` |
-| Dependencies | 0 | 0 |
-| Bundle size (minified) | ~15 KB | ~180 KB |
-| TypeScript | Written in TS, full inference | Written in TS |
+| Test runner integration | `fuzzIt` — one function, same signature as `it` | `@fast-check/vitest` with `test.prop` |
+| API surface | Small, opinionated | Large, highly configurable |
 | Shrinking | Binary search + delta debugging | Shrink-on-generate |
 | Model-based testing | Built-in | Built-in |
-| Zod integration | `typefuzz/zod` adapter | Community plugin |
+| Zod integration | `typefuzz/zod` adapter | Community `zod-fast-check` |
 | Async support | Native | Native |
 
 ## Features
@@ -95,6 +93,15 @@ When a property fails, TypeFuzz automatically minimises the counterexample — b
 - [AI Agent Compatibility](./docs/ai-agent-compatibility.md)
 - [Agent Instructions](./AGENTS.md)
 - [LLM Index](./llms.txt)
+
+## Development
+
+```sh
+bun install
+bun run lint
+bun run typecheck
+bun run test
+```
 
 ## Licence
 
