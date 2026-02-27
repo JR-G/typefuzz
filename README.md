@@ -10,39 +10,77 @@
 
 # TypeFuzz
 
-TypeScript-first fuzz/property testing utilities with Vitest/Jest integrations, shrinking, replay, and model-based testing.
+Property-based testing for TypeScript that drops straight into your existing test runner. No wrappers, no config — write fuzz tests like you write unit tests.
 
-## Installation
+## Why TypeFuzz?
+
+- **Test runner integration** — `fuzzIt` works like `it`/`test` inside Vitest and Jest. No separate CLI.
+- **Zero dependencies** — ships nothing you don't need. Vitest, Jest, and Zod are optional peer deps.
+- **TypeScript-first** — full type inference from generators to predicates. No casting.
+- **Deterministic** — seeded RNG means every failure is reproducible with a single seed value.
+- **Built-in shrinking** — automatic counterexample minimisation using binary search, length reduction, and delta debugging.
+
+## Install
 
 ```sh
-bun add typefuzz
+npm install -D typefuzz
 ```
 
-## Quickstart
+<details>
+<summary>Other package managers</summary>
 
-```ts
-import { fuzz, gen } from 'typefuzz';
-
-fuzz.assert(gen.array(gen.int(0, 10), 5), (values) => {
-  const doubleReversed = [...values].reverse().reverse();
-  return JSON.stringify(doubleReversed) === JSON.stringify(values);
-}, { runs: 100, seed: 123 });
+```sh
+pnpm add -D typefuzz
+yarn add -D typefuzz
+bun add -D typefuzz
 ```
 
-## Test runner usage
+</details>
+
+## Quick example
 
 ```ts
 import { fuzzIt } from 'typefuzz/vitest';
 import { gen } from 'typefuzz';
 
-fuzzIt('sum is commutative', gen.tuple(gen.int(0, 10), gen.int(0, 10)), ([left, right]) => {
-  return left + right === right + left;
-}, { runs: 200, seed: 123 });
+fuzzIt('sort is idempotent', gen.array(gen.int(-100, 100), { minLength: 0, maxLength: 50 }), (arr) => {
+  const sorted = [...arr].sort((a, b) => a - b);
+  const sortedTwice = [...sorted].sort((a, b) => a - b);
+  return JSON.stringify(sorted) === JSON.stringify(sortedTwice);
+});
 ```
+
+If the property fails, TypeFuzz shrinks the input to the smallest counterexample and prints the seed for replay.
+
+## TypeFuzz vs fast-check
+
+| | TypeFuzz | fast-check |
+| --- | --- | --- |
+| Test runner integration | `fuzzIt` drops into Vitest/Jest | Requires `fc.assert` wrapper inside `it` |
+| Dependencies | 0 | 0 |
+| Bundle size (minified) | ~15 KB | ~180 KB |
+| TypeScript | Written in TS, full inference | Written in TS |
+| Shrinking | Binary search + delta debugging | Shrink-on-generate |
+| Model-based testing | Built-in | Built-in |
+| Zod integration | `typefuzz/zod` adapter | Community plugin |
+| Async support | Native | Native |
+
+## Features
+
+### Model-based testing
+
+Test stateful systems against a simplified model. TypeFuzz generates random command sequences, runs them against both your system and the model, and shrinks failing sequences to the shortest reproduction. [Read more &rarr;](./docs/model-based-testing.md)
+
+### Zod adapter
+
+Already have Zod schemas? Generate test data directly from them with `zodArbitrary`. Supports objects, arrays, unions, discriminated unions, transforms, and more. [Read more &rarr;](./docs/zod-adapter.md)
+
+### Shrinking
+
+When a property fails, TypeFuzz automatically minimises the counterexample — binary search for numbers, length halving for strings and arrays, delta debugging for model-based command sequences. [Read more &rarr;](./docs/shrinking-and-replay.md)
 
 ## Documentation
 
-- [Documentation Index](./docs/index.md)
 - [Getting Started](./docs/getting-started.md)
 - [Generators](./docs/generators.md)
 - [Core API](./docs/core-api.md)
@@ -51,17 +89,7 @@ fuzzIt('sum is commutative', gen.tuple(gen.int(0, 10), gen.int(0, 10)), ([left, 
 - [Zod Adapter](./docs/zod-adapter.md)
 - [Shrinking and Replay](./docs/shrinking-and-replay.md)
 - [FAQ](./docs/faq.md)
-- [Releasing](./docs/releasing.md)
-- [AI Testing Playbook](./docs/ai-testing-playbook.md)
-- [AI Agent Compatibility](./docs/ai-agent-compatibility.md)
-- [Agent Instructions](./AGENTS.md)
-- [LLM Index](./llms.txt)
 
-## Development
+## Licence
 
-```sh
-bun install
-bun run lint
-bun run typecheck
-bun run test
-```
+[MIT](./LICENSE)
