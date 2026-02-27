@@ -81,6 +81,7 @@ When a property fails, TypeFuzz automatically minimises the counterexample — b
 
 ## Documentation
 
+- [Documentation Index](./docs/index.md)
 - [Getting Started](./docs/getting-started.md)
 - [Generators](./docs/generators.md)
 - [Core API](./docs/core-api.md)
@@ -89,6 +90,11 @@ When a property fails, TypeFuzz automatically minimises the counterexample — b
 - [Zod Adapter](./docs/zod-adapter.md)
 - [Shrinking and Replay](./docs/shrinking-and-replay.md)
 - [FAQ](./docs/faq.md)
+- [Releasing](./docs/releasing.md)
+- [AI Testing Playbook](./docs/ai-testing-playbook.md)
+- [AI Agent Compatibility](./docs/ai-agent-compatibility.md)
+- [Agent Instructions](./AGENTS.md)
+- [LLM Index](./llms.txt)
 
 ## Licence
 
