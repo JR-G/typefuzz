@@ -63,12 +63,12 @@
     "release:tag": "bash scripts/release-tag.sh"
   },
   "devDependencies": {
-    "@types/node": "^25.2.2",
+    "@types/node": "^26.0.0",
     "@typescript-eslint/eslint-plugin": "^8.54.0",
     "@typescript-eslint/parser": "^8.54.0",
     "eslint": "^10.0.0",
     "lefthook": "^2.1.0",
-    "typescript": "^5.7.3",
+    "typescript": "^6.0.3",
     "vitest": "^4.0.18",
     "zod": "4"
   },
